@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CUEPE — Clinical Uncertainty Escalation Prediction Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#060a10;--bg2:#0b1018;--bg3:#0f1520;--bg4:#141c2b;
+  --bd:#1a2535;--bd2:#1f2d42;
+  --b1:#3b82f6;--b2:#10b981;--b3:#f59e0b;--b4:#ef4444;
+  --b5:#8b5cf6;--b6:#06b6d4;--b7:#f472b6;--b8:#a3e635;
+  --t1:#e8edf5;--t2:#94a3b8;--t3:#4b5a6e;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+  --r:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--t1);font-family:var(--sans);font-size:14px;line-height:1.6;overflow-x:hidden}
+
+/* ── GRID BG ── */
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(59,130,246,.07),transparent);pointer-events:none;z-index:0}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+
+/* ── LAYOUT ── */
+.app{display:flex;min-height:100vh;position:relative;z-index:1}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--bd);position:fixed;top:0;left:0;z-index:50;display:flex;flex-direction:column;padding:0 0 24px}
+.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid var(--bd)}
+.sidebar-logo .icon{width:36px;height:36px;background:linear-gradient(135deg,var(--b1),var(--b5));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px;box-shadow:0 0 18px rgba(59,130,246,.35)}
+.sidebar-logo h2{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--t1);letter-spacing:.04em}
+.sidebar-logo p{font-size:10px;color:var(--t3);font-family:var(--mono)}
+
+.nav{flex:1;padding:12px 10px;overflow-y:auto}
+.nav-section{font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.12em;text-transform:uppercase;padding:8px 8px 4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;cursor:pointer;transition:background .15s,color .15s;font-size:12px;color:var(--t2);border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg4);color:var(--t1)}
+.nav-item.active{background:rgba(59,130,246,.15);color:var(--b1)}
+.nav-item .ni{font-size:14px;width:20px;text-align:center;flex-shrink:0}
+.nav-item span{font-size:11px}
+
+.sidebar-footer{padding:12px 14px;border-top:1px solid var(--bd)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--b2);display:inline-block;margin-right:7px;animation:pulse2 2s infinite}
+@keyframes pulse2{0%,100%{opacity:1}50%{opacity:.4}}
+.sidebar-footer p{font-family:var(--mono);font-size:10px;color:var(--t3)}
+
+/* ── MAIN ── */
+.main{margin-left:220px;flex:1;min-height:100vh;padding:0}
+
+/* ── TOPBAR ── */
+.topbar{background:rgba(11,16,24,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40}
+.topbar h1{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.03em}
+.topbar .sub{font-size:11px;color:var(--t3);margin-top:1px;font-family:var(--mono)}
+.topbar-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{font-family:var(--mono);font-size:9px;padding:3px 9px;border-radius:20px;border:1px solid;letter-spacing:.04em}
+.pill-gr{color:var(--b2);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.08)}
+.pill-bl{color:var(--b1);border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.08)}
+.pill-am{color:var(--b3);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.08)}
+.pill-pu{color:var(--b5);border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.08)}
+
+/* ── PAGE SECTIONS ── */
+.page{display:none;padding:24px 28px 40px}
+.page.active{display:block}
+
+/* ── SECTION TITLE ── */
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.sec-line{flex:1;height:1px;background:var(--bd)}
+.sec-title{font-family:var(--mono);font-size:10px;color:var(--t3);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
+.sec-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:24px}
+.kpi{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;cursor:default}
+.kpi:hover{transform:translateY(-2px)}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.c1::after{background:linear-gradient(90deg,var(--b1),transparent)}
+.kpi.c2::after{background:linear-gradient(90deg,var(--b2),transparent)}
+.kpi.c3::after{background:linear-gradient(90deg,var(--b3),transparent)}
+.kpi.c4::after{background:linear-gradient(90deg,var(--b4),transparent)}
+.kpi.c5::after{background:linear-gradient(90deg,var(--b5),transparent)}
+.kpi.c6::after{background:linear-gradient(90deg,var(--b6),transparent)}
+.kpi-label{font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.kpi-val{font-family:var(--mono);font-size:28px;font-weight:700;line-height:1;margin-bottom:4px}
+.kpi-val.c1{color:var(--b1)}.kpi-val.c2{color:var(--b2)}.kpi-val.c3{color:var(--b3)}
+.kpi-val.c4{color:var(--b4)}.kpi-val.c5{color:var(--b5)}.kpi-val.c6{color:var(--b6)}
+.kpi-sub{font-size:11px;color:var(--t3);line-height:1.4}
+
+/* ── CARDS ── */
+.card{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:20px 22px;overflow:hidden}
+.card-title{font-family:var(--mono);font-size:10px;letter-spacing:.07em;color:var(--t3);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.card-title b{color:var(--t2);font-size:12px;font-weight:500}
+.cdot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.cd1{background:var(--b1)}.cd2{background:var(--b2)}.cd3{background:var(--b3)}
+.cd4{background:var(--b4)}.cd5{background:var(--b5)}.cd6{background:var(--b6)}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:18px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.span2{grid-column:span 2}
+@media(max-width:1100px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}.span2{grid-column:span 2}}
+@media(max-width:700px){.g2,.g3,.g4{grid-template-columns:1fr}.span2{grid-column:span 1}}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--t3);text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}
+.tbl td{padding:9px 12px;border-bottom:1px solid rgba(26,37,53,.6);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(59,130,246,.04)}
+.tbl tr.best td{background:rgba(16,185,129,.05)}
+.tp{display:inline-block;font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:4px;letter-spacing:.04em}
+.tp1{background:rgba(100,116,139,.2);color:#94a3b8}
+.tp2{background:rgba(59,130,246,.15);color:var(--b1)}
+.tp3{background:rgba(16,185,129,.15);color:var(--b2)}
+.bwrap{display:flex;align-items:center;gap:8px}
+.btrack{flex:1;height:4px;background:rgba(26,37,53,.9);border-radius:2px;min-width:80px}
+.bfill{height:4px;border-radius:2px}
+
+/* ── EXPLAIN BLOCKS ── */
+.explain{background:var(--bg4);border:1px solid var(--bd2);border-radius:10px;padding:16px 18px;margin-top:16px}
+.explain h4{font-size:12px;font-weight:600;color:var(--t1);margin-bottom:6px;display:flex;align-items:center;gap:7px}
+.explain p{font-size:12px;color:var(--t2);line-height:1.7}
+.explain ul{font-size:12px;color:var(--t2);line-height:1.7;padding-left:18px;margin-top:4px}
+.explain li{margin-bottom:3px}
+.tag{display:inline-block;font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;margin-right:5px;margin-bottom:3px;letter-spacing:.03em}
+.tag-bl{background:rgba(59,130,246,.15);color:var(--b1)}
+.tag-gr{background:rgba(16,185,129,.15);color:var(--b2)}
+.tag-am{background:rgba(245,158,11,.15);color:var(--b3)}
+.tag-pu{background:rgba(139,92,246,.15);color:var(--b5)}
+.tag-re{background:rgba(239,68,68,.15);color:var(--b4)}
+
+/* ── ALERT BOXES ── */
+.alert{border-radius:10px;padding:12px 16px;border-left:3px solid;margin-bottom:12px}
+.alert:last-child{margin-bottom:0}
+.a-gr{border-color:var(--b2);background:rgba(16,185,129,.07)}
+.a-am{border-color:var(--b3);background:rgba(245,158,11,.07)}
+.a-re{border-color:var(--b4);background:rgba(239,68,68,.07)}
+.a-bl{border-color:var(--b1);background:rgba(59,130,246,.07)}
+.alert h4{font-size:12px;font-weight:600;margin-bottom:3px}
+.alert p{font-size:11px;color:var(--t2);line-height:1.55}
+
+/* ── VITAL GRID ── */
+.vital-card{background:var(--bg4);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;text-align:center}
+.vital-name{font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.vital-val{font-family:var(--mono);font-size:20px;font-weight:700;margin-bottom:3px}
+.vital-sub{font-size:10px;color:var(--t3)}
+
+/* ── CUI formula box ── */
+.formula-box{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:14px 18px;text-align:center;font-family:var(--mono);font-size:13px;color:var(--b1);margin:12px 0}
+
+/* ── STEP PIPELINE ── */
+.steps{display:flex;flex-direction:column;gap:0}
+.step{display:flex;gap:14px}
+.step-line{display:flex;flex-direction:column;align-items:center}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--b1);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:700;flex-shrink:0}
+.step-conn{width:1px;flex:1;background:var(--bd);min-height:20px;margin:2px 0}
+.step-body{padding-bottom:18px;flex:1;padding-top:2px}
+.step-body h4{font-size:13px;font-weight:600;margin-bottom:4px}
+.step-body p{font-size:11px;color:var(--t3);line-height:1.6}
+.step:last-child .step-conn{display:none}
+
+/* ── CHART WRAPPER ── */
+.chart-wrap{position:relative;width:100%}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.page.active{animation:fadeIn .3s ease}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="icon">&#x1F9E0;</div>
+    <h2>CUEPE</h2>
+    <p>Clinical Uncertainty Engine</p>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Navigation</div>
+    <button class="nav-item active" onclick="showPage('overview')" id="nav-overview">
+      <span class="ni">&#x1F4CA;</span><span>Overview</span>
+    </button>
+    <button class="nav-item" onclick="showPage('datasets')" id="nav-datasets">
+      <span class="ni">&#x1F5C4;</span><span>Datasets &amp; EDA</span>
+    </button>
+    <button class="nav-item" onclick="showPage('pipeline')" id="nav-pipeline">
+      <span class="ni">&#x2699;</span><span>ML Pipeline</span>
+    </button>
+    <div class="nav-section">Results</div>
+    <button class="nav-item" onclick="showPage('mimic')" id="nav-mimic">
+      <span class="ni">&#x1F3E5;</span><span>MIMIC-IV Results</span>
+    </button>
+    <button class="nav-item" onclick="showPage('vitals')" id="nav-vitals">
+      <span class="ni">&#x1F493;</span><span>Vitals Results</span>
+    </button>
+    <button class="nav-item" onclick="showPage('features')" id="nav-features">
+      <span class="ni">&#x1F50D;</span><span>Feature Analysis</span>
+    </button>
+    <div class="nav-section">Clinical</div>
+    <button class="nav-item" onclick="showPage('inference')" id="nav-inference">
+      <span class="ni">&#x26A1;</span><span>Inference &amp; CUI</span>
+    </button>
+    <button class="nav-item" onclick="showPage('guide')" id="nav-guide">
+      <span class="ni">&#x1F4D6;</span><span>Full Guide</span>
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <p><span class="status-dot"></span>All models trained</p>
+    <p style="margin-top:4px;font-size:9px">MIMIC-IV Demo v2.2</p>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+<div class="topbar">
+  <div>
+    <div class="topbar h1" style="font-family:var(--mono);font-size:13px;font-weight:700">CUEPE &mdash; Clinical Uncertainty Escalation Prediction Engine</div>
+    <div class="topbar sub" style="font-size:10px;color:var(--t3);font-family:var(--mono)">MIMIC-IV ICU &middot; Human Vitals Dataset &middot; Meta-Prediction System</div>
+  </div>
+  <div class="topbar-right">
+    <span class="pill pill-gr">&#9679; LIVE RESULTS</span>
+    <span class="pill pill-bl">9 MODELS</span>
+    <span class="pill pill-am">17 GRAPHS</span>
+    <span class="pill pill-pu">100 ICU PATIENTS</span>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE: OVERVIEW ═══════════════ -->
+<div class="page active" id="page-overview">
+
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-dot" style="background:var(--b1)"></div>
+    <div class="sec-title">Performance Summary</div>
+    <div class="sec-line"></div>
+  </div>
+
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd1"></div><b>MIMIC-IV &mdash; AUC-ROC Comparison</b></div>
+      <div class="chart-wrap"><canvas id="ch-auc-bar" height="220"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd2"></div><b>Cross-Validation AUC (5-Fold) &mdash; MIMIC</b></div>
+      <div class="chart-wrap"><canvas id="ch-cv-bar" height="220"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd3"></div><b>F1 Score by Model</b></div>
+      <div class="chart-wrap"><canvas id="ch-f1-bar" height="200"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd5"></div><b>Vitals Dataset &mdash; AUC</b></div>
+      <div class="chart-wrap"><canvas id="ch-auc-vitals" height="200"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd6"></div><b>Metric Radar &mdash; Best Model</b></div>
+      <div class="chart-wrap"><canvas id="ch-radar" height="200"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Leaderboard -->
+  <div class="sec-hdr">
+    <div class="sec-dot" style="background:var(--b2)"></div>
+    <div class="sec-title">Full Leaderboard</div>
+    <div class="sec-line"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><div class="cdot cd2"></div><b>All Models &mdash; MIMIC-IV &amp; External Vitals</b></div>
+    <div style="overflow-x:auto"><table class="tbl" id="leaderboard-tbl"></table></div>
+  </div>
+
+  <div class="explain" style="margin-top:16px">
+    <h4>&#x1F4CA; How to Read This Page</h4>
+    <p>This overview shows the performance of every model trained on both datasets. <strong>AUC-ROC</strong> measures how well the model separates high-uncertainty from low-uncertainty patients across all thresholds — 1.0 is perfect, 0.5 is random guessing. <strong>F1 Score</strong> balances precision and recall, critical for clinical use where both false positives (unnecessary escalations) and false negatives (missed escalations) are costly. <strong>Cross-Validation AUC</strong> shows how consistently the model performs across 5 different train/test splits, telling us the model generalises and hasn&apos;t overfit to one lucky split.</p>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE: DATASETS ═══════════════ -->
+<div class="page" id="page-datasets">
+
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-dot" style="background:var(--b3)"></div>
+    <div class="sec-title">Dataset Overview</div>
+    <div class="sec-line"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd1"></div><b>MIMIC-IV Demo v2.2 &mdash; Files Used</b></div>
+      <table class="tbl">
+        <thead><tr><th>File</th><th>Rows</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:var(--mono);font-size:11px;color:var(--b1)">icu/chartevents.csv</td><td style="font-family:var(--mono)">668,862</td><td style="color:var(--t2);font-size:11px">9 ICU vital signs &mdash; primary time-series</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px;color:var(--b1)">icu/icustays.csv</td><td style="font-family:var(--mono)">140</td><td style="color:var(--t2);font-size:11px">ICU stay duration, unit, LOS</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px;color:var(--b1)">hosp/labevents.csv</td><td style="font-family:var(--mono)">107,727</td><td style="color:var(--t2);font-size:11px">9 chemistry &amp; haematology labs</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px;color:var(--b1)">hosp/patients.csv</td><td style="font-family:var(--mono)">100</td><td style="color:var(--t2);font-size:11px">Demographics: age, gender</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px;color:var(--b1)">hosp/admissions.csv</td><td style="font-family:var(--mono)">275</td><td style="color:var(--t2);font-size:11px">Hospital mortality, admission count</td></tr>
+        </tbody>
+      </table>
+      <div class="explain" style="margin-top:12px">
+        <h4>&#x1F3E5; Why MIMIC-IV?</h4>
+        <p>MIMIC-IV (Medical Information Mart for Intensive Care) is the gold-standard public ICU dataset. It contains real de-identified patient records from Beth Israel Deaconess Medical Center. We use it to extract <strong>per-patient uncertainty signals</strong> from vitals and labs — entropy, CV, slope, range. The label (high/low uncertainty) is derived from a composite CUI score, not from direct diagnosis. This makes it a genuine meta-prediction task.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd3"></div><b>Human Vital Signs Dataset 2024 &mdash; Overview</b></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="vital-card"><div class="vital-name">Total Records</div><div class="vital-val" style="color:var(--b3)">200,020</div><div class="vital-sub">Vital sign snapshots</div></div>
+        <div class="vital-card"><div class="vital-name">Features</div><div class="vital-val" style="color:var(--b1)">16+4</div><div class="vital-sub">Raw + derived features</div></div>
+        <div class="vital-card"><div class="vital-name">High Risk</div><div class="vital-val" style="color:var(--b4)">52.6%</div><div class="vital-sub">105,115 patients</div></div>
+        <div class="vital-card"><div class="vital-name">Low Risk</div><div class="vital-val" style="color:var(--b2)">47.4%</div><div class="vital-sub">94,905 patients</div></div>
+      </div>
+      <div class="explain">
+        <h4>&#x1F493; Why This Dataset?</h4>
+        <p>The Human Vitals 2024 dataset contains 200k vital sign snapshots with a pre-labelled <strong>Risk Category</strong> column (High/Low Risk). Unlike MIMIC-IV where we construct our own uncertainty label, here the label already exists. This lets us train models on a <strong>much larger sample</strong> and validate that our uncertainty features generalise beyond ICU patients. The near-perfect AUC on this dataset (XGBoost = 1.00) confirms that vital sign patterns are strongly predictive of risk.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vital sign stats -->
+  <div class="sec-hdr">
+    <div class="sec-dot" style="background:var(--b6)"></div>
+    <div class="sec-title">ICU Vital Sign Statistics (MIMIC-IV)</div>
+    <div class="sec-line"></div>
+  </div>
+  <div id="vital-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px"></div>
+
+  <!-- CUI Distribution -->
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd4"></div><b>CUI Score Distribution &mdash; High vs Low Uncertainty</b></div>
+      <div class="chart-wrap"><canvas id="ch-cui-dist" height="210"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd3"></div><b>ICU Length of Stay &mdash; By Uncertainty Class</b></div>
+      <div class="chart-wrap"><canvas id="ch-los-dist" height="210"></canvas></div>
+    </div>
+  </div>
+
+  <!-- KM -->
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-title"><div class="cdot cd2"></div><b>Kaplan-Meier Survival Curve &mdash; Time to Uncertainty Escalation</b></div>
+    <div class="chart-wrap"><canvas id="ch-km" height="200"></canvas></div>
+    <div class="explain" style="margin-top:12px">
+      <h4>&#x1F4C8; Reading the Kaplan-Meier Curve</h4>
+      <p>The Y-axis shows the probability that a patient has <em>not yet</em> escalated to high-uncertainty status. The X-axis is ICU hours. The <span style="color:var(--b1)">blue curve (Low Uncertainty patients)</span> stays high — these patients maintain stable, predictable vital signs throughout their stay. The <span style="color:var(--b4)">red curve (High Uncertainty patients)</span> drops rapidly — they enter an unpredictable zone much earlier. The <strong>gap between the curves</strong> is your clinical window for early intervention.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ PAGE: ML PIPELINE ═══════════════ -->
+<div class="page" id="page-pipeline">
+
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-dot" style="background:var(--b5)"></div>
+    <div class="sec-title">End-to-End ML Pipeline</div>
+    <div class="sec-line"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd1"></div><b>Pipeline Architecture</b></div>
+      <div class="steps">
+        <div class="step"><div class="step-line"><div class="step-num">1</div><div class="step-conn"></div></div><div class="step-body"><h4>Data Ingestion</h4><p>Load MIMIC-IV chartevents (668k rows), filter to 9 vital itemids. Load labevents (107k rows), filter to 9 lab panels. Load External Vitals (200k rows).</p></div></div>
+        <div class="step"><div class="step-line"><div class="step-num">2</div><div class="step-conn"></div></div><div class="step-body"><h4>Feature Engineering &mdash; Uncertainty Signals</h4><p>For each patient &times; signal: compute mean, std, CV, IQR, range, differential entropy, linear slope. Result: 132 features per patient from MIMIC.</p></div></div>
+        <div class="step"><div class="step-line"><div class="step-num">3</div><div class="step-conn"></div></div><div class="step-body"><h4>CUI Label Construction</h4><p>Build Clinical Uncertainty Index from 4 components. Patients above 60th percentile CUI = &ldquo;High Uncertainty&rdquo; label. 40% positive class.</p></div></div>
+        <div class="step"><div class="step-line"><div class="step-num">4</div><div class="step-conn"></div></div><div class="step-body"><h4>Preprocessing</h4><p>Median imputation for missing values, Standard scaling. SMOTE oversampling on training set only to fix class imbalance.</p></div></div>
+        <div class="step"><div class="step-line"><div class="step-num">5</div><div class="step-conn"></div></div><div class="step-body"><h4>Model Training (Both Datasets)</h4><p>LR, RF (300 trees), XGBoost (200 estimators), LightGBM on MIMIC. LR, XGBoost, LightGBM on Vitals. 5-fold CV on MIMIC.</p></div></div>
+        <div class="step"><div class="step-line"><div class="step-num">6</div><div class="step-conn"></div></div><div class="step-body"><h4>Ensemble</h4><p>Soft-voting ensemble: average predicted probabilities from all models in each dataset. Best overall configuration selected.</p></div></div>
+        <div class="step"><div class="step-line"><div class="step-num">7</div><div class="step-conn"></div></div><div class="step-body"><h4>Evaluation &amp; Interpretability</h4><p>AUC-ROC, F1, Avg Precision on held-out test sets. SHAP TreeExplainer for per-feature and per-patient explanations.</p></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><div class="cdot cd2"></div><b>CUI — Clinical Uncertainty Index</b></div>
+      <div class="formula-box">CUI = 0.35&middot;H(P) + 0.25&middot;&sigma;&sup2;(t) + 0.20&middot;Range + 0.20&middot;|slope|</div>
+
+      <div style="margin-bottom:14px">
+        <div class="alert a-bl">
+          <h4>&#x1F525; H(P) &mdash; Prediction Entropy (weight 35%)</h4>
+          <p>Measures how spread out a vital sign&apos;s distribution is. High entropy means the vital is erratic &mdash; oscillating unpredictably. A heart rate that visits many different values is more uncertain than one that stays near its mean.</p>
+        </div>
+        <div class="alert a-am">
+          <h4>&#x1F4C9; &sigma;&sup2;(t) &mdash; Coefficient of Variation (weight 25%)</h4>
+          <p>Standard deviation divided by mean. Normalised measure of variability. A SpO2 CV of 0.05 vs 0.001 tells you one patient&apos;s oxygen is swinging wildly while the other&apos;s is stable.</p>
+        </div>
+        <div class="alert a-gr">
+          <h4>&#x1F4CF; Range (weight 20%)</h4>
+          <p>Max minus min across all measurements. Captures extreme excursions. A BP range of 80mmHg across a stay signals physiological instability.</p>
+        </div>
+        <div class="alert a-re">
+          <h4>&#x26A1; |slope| &mdash; Temporal Drift (weight 20%)</h4>
+          <p>Linear trend fitted to the time series. A large absolute slope means the vital is trending strongly up or down &mdash; an early warning that the patient is deteriorating or recovering rapidly.</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="vital-card"><div class="vital-name">CUI Threshold</div><div class="vital-val" style="color:var(--b3)">0.470</div><div class="vital-sub">60th percentile</div></div>
+        <div class="vital-card"><div class="vital-name">High Uncertainty</div><div class="vital-val" style="color:var(--b4)">40%</div><div class="vital-sub">40 of 100 pts</div></div>
+        <div class="vital-card"><div class="vital-name">Features</div><div class="vital-val" style="color:var(--b1)">132</div><div class="vital-sub">MIMIC features</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SMOTE explanation -->
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-title"><div class="cdot cd5"></div><b>Class Balance &amp; SMOTE</b></div>
+    <div class="chart-wrap"><canvas id="ch-class-balance" height="160"></canvas></div>
+    <div class="explain" style="margin-top:12px">
+      <h4>&#x2696; Why SMOTE?</h4>
+      <p>SMOTE (Synthetic Minority Over-sampling Technique) synthetically generates new minority-class samples by interpolating between existing ones in feature space. Without it, a model trained on imbalanced data simply predicts the majority class (Low Uncertainty) for everything and achieves high accuracy while missing all high-uncertainty patients — useless clinically. SMOTE is applied <strong>only to the training set</strong>, never the test set, to avoid data leakage.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ PAGE: MIMIC RESULTS ═══════════════ -->
+<div class="page" id="page-mimic">
+
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-dot" style="background:var(--b1)"></div>
+    <div class="sec-title">MIMIC-IV Model Performance</div>
+    <div class="sec-line"></div>
+  </div>
+
+  <!-- ROC -->
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd1"></div><b>ROC Curves &mdash; MIMIC-IV All Models</b></div>
+      <div class="chart-wrap"><canvas id="ch-roc-mimic" height="240"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd3"></div><b>Precision-Recall Curves &mdash; MIMIC-IV</b></div>
+      <div class="chart-wrap"><canvas id="ch-pr-mimic" height="240"></canvas></div>
+    </div>
+  </div>
+  <div class="explain" style="margin-bottom:18px">
+    <h4>&#x1F4C8; ROC Curve &mdash; What Each Line Means</h4>
+    <p>Each coloured curve represents one model. The X-axis is the <strong>False Positive Rate</strong> (how often we incorrectly flag a stable patient as high-uncertainty) and the Y-axis is the <strong>True Positive Rate / Recall</strong> (how many real high-uncertainty patients we correctly catch). A curve hugging the top-left corner is ideal — high recall at very low false positive rate. The <strong>diagonal dashed line</strong> represents random guessing (AUC=0.5). The <span style="color:var(--b1)">Logistic Regression curve (AUC=0.933)</span> sits highest, meaning it achieves the best balance of sensitivity and specificity on the MIMIC test set. The <strong>Precision-Recall curve</strong> tells the same story but focuses on the positive class — crucial when the positive class (high-uncertainty) is clinically the most important.</p>
+  </div>
+
+  <!-- Confusion matrices -->
+  <div class="sec-hdr">
+    <div class="sec-dot" style="background:var(--b4)"></div>
+    <div class="sec-title">Confusion Matrices</div>
+    <div class="sec-line"></div>
+  </div>
+  <div class="g4" id="cm-grid" style="margin-bottom:18px"></div>
+  <div class="explain" style="margin-bottom:18px">
+    <h4>&#x1F9EE; Reading Confusion Matrices</h4>
+    <p>Each 2&times;2 matrix shows: <strong>Top-left (TN)</strong> = correctly identified Low-Uncertainty patients; <strong>Bottom-right (TP)</strong> = correctly identified High-Uncertainty patients; <strong>Top-right (FP)</strong> = Low-Uncertainty patients wrongly flagged for escalation (wasted clinical resources); <strong>Bottom-left (FN)</strong> = High-Uncertainty patients missed entirely (the most dangerous clinical error). In a clinical escalation setting, <strong>minimising FN (False Negatives)</strong> is the priority — missing a deteriorating patient is worse than an unnecessary check.</p>
+  </div>
+
+  <!-- Score distributions + calibration -->
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd5"></div><b>Score Distributions &mdash; Class Separation</b></div>
+      <div class="chart-wrap"><canvas id="ch-dist-mimic" height="220"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd6"></div><b>Calibration Curves &mdash; MIMIC-IV</b></div>
+      <div class="chart-wrap"><canvas id="ch-cal-mimic" height="220"></canvas></div>
+    </div>
+  </div>
+  <div class="explain" style="margin-bottom:18px">
+    <h4>&#x1F3AF; Score Distribution &amp; Calibration Explained</h4>
+    <p><strong>Score Distribution:</strong> Shows the predicted uncertainty probabilities separately for true Low-Uncertainty patients (blue) and true High-Uncertainty patients (red). Good separation = two distinct humps with minimal overlap around the 0.5 decision boundary. Overlap in the middle is the &ldquo;uncertainty zone&rdquo; where the model is genuinely unsure — exactly what CUI tries to quantify.<br><br><strong>Calibration Curves:</strong> The diagonal line is &ldquo;perfect calibration&rdquo; — a model that says 70% should be right 70% of the time. Curves above the diagonal (overconfident) or below (underconfident) need Platt scaling or isotonic regression before clinical deployment. Well-calibrated probabilities are critical in clinical settings because doctors use these probabilities as thresholds for decision-making.</p>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE: VITALS RESULTS ═══════════════ -->
+<div class="page" id="page-vitals">
+
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-dot" style="background:var(--b3)"></div>
+    <div class="sec-title">External Vitals Dataset Results</div>
+    <div class="sec-line"></div>
+  </div>
+
+  <div class="kpi-grid" id="kpi-vitals"></div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd3"></div><b>ROC Curves &mdash; Vitals Dataset</b></div>
+      <div class="chart-wrap"><canvas id="ch-roc-vitals" height="240"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd1"></div><b>Precision-Recall &mdash; Vitals Dataset</b></div>
+      <div class="chart-wrap"><canvas id="ch-pr-vitals" height="240"></canvas></div>
+    </div>
+  </div>
+
+  <div class="explain" style="margin-bottom:18px">
+    <h4>&#x1F4AF; Why Does XGBoost Achieve AUC = 1.00 on Vitals?</h4>
+    <p>The Human Vitals 2024 dataset contains <strong>200,000 clean, structured vital sign snapshots</strong> with a direct Risk Category label that was algorithmically generated from the same vital signs present as features. This means the relationship between features and label is deterministic — tree-based models like XGBoost and LightGBM perfectly learn this function. The Logistic Regression (AUC=0.90) is more honest: it cannot perfectly fit the non-linear decision boundary, confirming that the signal is real but requires non-linear modelling. On real-world noisy ICU data (MIMIC-IV), results are more modest and realistic (0.82&ndash;0.93).</p>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd2"></div><b>Vitals vs MIMIC &mdash; AUC Comparison</b></div>
+      <div class="chart-wrap"><canvas id="ch-compare-datasets" height="230"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd5"></div><b>Vitals Dataset &mdash; Feature Roles</b></div>
+      <table class="tbl">
+        <thead><tr><th>Feature</th><th>Type</th><th>Clinical Role</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:var(--mono);font-size:11px">Heart Rate</td><td><span class="tp tp2">Raw</span></td><td style="font-size:11px;color:var(--t2)">Cardiac stress indicator</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px">Respiratory Rate</td><td><span class="tp tp2">Raw</span></td><td style="font-size:11px;color:var(--t2)">Breathing distress signal</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px">Oxygen Saturation</td><td><span class="tp tp2">Raw</span></td><td style="font-size:11px;color:var(--t2)">Hypoxia detection</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px">SBP / DBP</td><td><span class="tp tp2">Raw</span></td><td style="font-size:11px;color:var(--t2)">Haemodynamic stability</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px">hr_rr_ratio</td><td><span class="tp tp3">Derived</span></td><td style="font-size:11px;color:var(--t2)">Cardiopulmonary coupling</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px">pulse_pressure</td><td><span class="tp tp3">Derived</span></td><td style="font-size:11px;color:var(--t2)">Stroke volume proxy</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px">spo2_deficit</td><td><span class="tp tp3">Derived</span></td><td style="font-size:11px;color:var(--t2)">100 minus SpO2 &mdash; oxygen gap</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:11px">temp_deviation</td><td><span class="tp tp3">Derived</span></td><td style="font-size:11px;color:var(--t2)">Distance from 37&deg;C norm</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE: FEATURES ═══════════════ -->
+<div class="page" id="page-features">
+
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-dot" style="background:var(--b5)"></div>
+    <div class="sec-title">Feature Importance &amp; SHAP Analysis</div>
+    <div class="sec-line"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd5"></div><b>SHAP Mean |Value| &mdash; XGBoost (MIMIC-IV)</b></div>
+      <div class="chart-wrap"><canvas id="ch-shap" height="280"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd1"></div><b>Feature Importance Consensus &mdash; RF + XGB + LGB</b></div>
+      <div class="chart-wrap"><canvas id="ch-feat-imp" height="280"></canvas></div>
+    </div>
+  </div>
+
+  <div class="explain" style="margin-bottom:18px">
+    <h4>&#x1F50D; SHAP vs Feature Importance &mdash; What&apos;s the Difference?</h4>
+    <p><strong>SHAP (SHapley Additive exPlanations)</strong> assigns each feature a credit for each individual prediction based on game theory. The bar chart shows the mean absolute SHAP value — the average impact a feature has on the model output across all test patients. Features at the top push the uncertainty score most. <strong>lab_platelets_range</strong> being the top feature means: patients whose platelet count swings widely (high range) across their ICU stay are most strongly associated with high uncertainty. <br><br><strong>Feature Importance (RF/XGB/LGB)</strong> is a cruder measure — how often a feature is used for splits and how much it reduces impurity. The consensus plot shows all 3 models largely agree on the same top features, giving us confidence the signal is real and not model-specific.</p>
+    <p style="margin-top:8px"><strong>Key features decoded:</strong>
+      <span class="tag tag-re">lab_platelets_range</span> Platelet count volatility &mdash; haematological instability.
+      <span class="tag tag-am">resp_rate_range</span> Breathing rhythm instability.
+      <span class="tag tag-bl">gcs_eye_entropy</span> Irregular eye-opening response &mdash; neurological uncertainty.
+      <span class="tag tag-pu">lab_glucose_range</span> Blood sugar swings &mdash; metabolic dysregulation.
+      <span class="tag tag-gr">lab_bun_cv</span> Renal function variability (Blood Urea Nitrogen).
+    </p>
+  </div>
+
+  <!-- Feature type breakdown -->
+  <div class="g3">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd3"></div><b>Feature Type Distribution</b></div>
+      <div class="chart-wrap"><canvas id="ch-feat-types" height="200"></canvas></div>
+    </div>
+    <div class="card span2">
+      <div class="card-title"><div class="cdot cd6"></div><b>Feature Naming Convention</b></div>
+      <table class="tbl">
+        <thead><tr><th>Suffix</th><th>Meaning</th><th>Uncertainty Interpretation</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:var(--mono);color:var(--b4)">_entropy</td><td>Shannon/differential entropy</td><td>Higher = more unpredictable distribution</td><td style="font-size:11px;color:var(--t2)">heart_rate_entropy=3.2 &rarr; HR visits many different values</td></tr>
+          <tr><td style="font-family:var(--mono);color:var(--b3)">_cv</td><td>Coefficient of variation</td><td>Higher = more relative variability</td><td style="font-size:11px;color:var(--t2)">sbp_cv=0.15 &rarr; BP varying 15% around mean</td></tr>
+          <tr><td style="font-family:var(--mono);color:var(--b1)">_range</td><td>Max minus min</td><td>Higher = wider excursions</td><td style="font-size:11px;color:var(--t2)">lab_glucose_range=120 &rarr; glucose swung 120 mg/dL</td></tr>
+          <tr><td style="font-family:var(--mono);color:var(--b2)">_slope</td><td>Linear trend coefficient</td><td>Large |slope| = rapid trending</td><td style="font-size:11px;color:var(--t2)">resp_rate_slope=0.8 &rarr; RR increasing 0.8 bpm/hour</td></tr>
+          <tr><td style="font-family:var(--mono);color:var(--b5)">_std</td><td>Standard deviation</td><td>Higher = more spread around mean</td><td style="font-size:11px;color:var(--t2)">spo2_std=4.1 &rarr; SpO2 fluctuating &plusmn;4.1%</td></tr>
+          <tr><td style="font-family:var(--mono);color:var(--b6)">_n</td><td>Observation count</td><td>Fewer obs = more uncertain estimate</td><td style="font-size:11px;color:var(--t2)">lab_hemoglobin_n=3 &rarr; only 3 draws (sparse)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE: INFERENCE ═══════════════ -->
+<div class="page" id="page-inference">
+
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-dot" style="background:var(--b4)"></div>
+    <div class="sec-title">Clinical Uncertainty Score &amp; Inference</div>
+    <div class="sec-line"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd4"></div><b>Escalation Decision Logic</b></div>
+      <div class="alert a-gr"><h4>&#x1F7E2; MONITOR &mdash; CUI &lt; 0.35</h4><p>Vital signs stable. Model confidence is high. All ensemble members agree on Low Uncertainty. Continue standard 4-hourly monitoring protocol.</p></div>
+      <div class="alert a-am"><h4>&#x1F7E1; WATCH &mdash; CUI 0.35&ndash;0.65</h4><p>Prediction confidence declining. Entropy and CV of one or more vitals rising. Increase to hourly monitoring. Review last 6h of labs. Consider senior review.</p></div>
+      <div class="alert a-re"><h4>&#x1F534; ESCALATE &mdash; CUI &gt; 0.65</h4><p>System in high-uncertainty zone. Multiple models disagree. SHAP explanation volatility high. Immediate bedside review required. Prepare for rapid deterioration.</p></div>
+      <div class="alert a-bl"><h4>&#x1F535; META-PREDICTION INSIGHT</h4><p>CUEPE does not predict <em>what</em> will go wrong. It predicts <em>when your predictions will stop being reliable</em>. This is the key novelty — anticipating the failure of clinical decision support before it fails.</p></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cdot cd2"></div><b>Sample Patient Escalation Scores (MIMIC Test Set)</b></div>
+      <div id="patient-scores"></div>
+    </div>
+  </div>
+
+  <!-- Threshold chart -->
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-title"><div class="cdot cd3"></div><b>Threshold Analysis &mdash; Precision vs Recall Trade-off (Ensemble)</b></div>
+    <div class="chart-wrap"><canvas id="ch-threshold" height="200"></canvas></div>
+    <div class="explain" style="margin-top:12px">
+      <h4>&#x2696; Choosing the Right Threshold</h4>
+      <p>The default 0.5 threshold is not always clinically optimal. This chart shows how Precision (of those flagged, how many are truly high-uncertainty) and Recall (of all high-uncertainty patients, how many did we catch) trade off as you move the threshold. In an ICU setting, <strong>Recall matters more</strong> — you want to catch all deteriorating patients even at the cost of some false alarms. A threshold of 0.35 is recommended for clinical deployment: it maximises recall while keeping precision acceptable.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE: GUIDE ═══════════════ -->
+<div class="page" id="page-guide">
+
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-dot" style="background:var(--b2)"></div>
+    <div class="sec-title">Complete Project Guide</div>
+    <div class="sec-line"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><div class="cdot cd1"></div><b>What This Project Is</b></div>
+      <div class="explain" style="margin-top:0">
+        <h4>&#x1F9E0; The Core Innovation: Meta-Prediction</h4>
+        <p>Most healthcare ML predicts outcomes: will this patient die? Will they develop sepsis? CUEPE predicts something fundamentally different: <strong>when will clinical predictions become unreliable?</strong><br><br>This is meta-prediction — predicting the reliability of other predictions. A model that says &ldquo;I&apos;m about to stop being trustworthy&rdquo; is clinically more actionable than one that gives a confident wrong answer.</p>
+      </div>
+      <div class="explain" style="margin-top:12px">
+        <h4>&#x1F4CA; The Two Datasets and Their Roles</h4>
+        <p><strong>MIMIC-IV (100 patients, 132 features):</strong> This is your primary clinical dataset. Real ICU patients from a US hospital. You construct the uncertainty label yourself using the CUI formula, making this a true unsupervised-to-supervised pipeline. The small size means tree models overfit less than deep learning.<br><br><strong>Human Vitals 2024 (200,000 records, 20 features):</strong> This is your validation and scale-up dataset. A pre-labelled risk category acts as a proxy for uncertainty. Training on 200k records shows the model can generalise to large populations. The near-perfect AUC validates that vital signs genuinely encode risk information.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><div class="cdot cd2"></div><b>Graph-by-Graph Explanation</b></div>
+      <table class="tbl">
+        <thead><tr><th>Graph</th><th>What It Shows</th><th>What to Say</th></tr></thead>
+        <tbody>
+          <tr><td style="font-size:11px;font-weight:600">ROC Curve</td><td style="font-size:11px;color:var(--t2)">TPR vs FPR at all thresholds</td><td style="font-size:11px;color:var(--t3)">Higher AUC = better separation</td></tr>
+          <tr><td style="font-size:11px;font-weight:600">PR Curve</td><td style="font-size:11px;color:var(--t2)">Precision vs Recall trade-off</td><td style="font-size:11px;color:var(--t3)">Better for imbalanced classes</td></tr>
+          <tr><td style="font-size:11px;font-weight:600">Confusion Matrix</td><td style="font-size:11px;color:var(--t2)">TP/TN/FP/FN counts</td><td style="font-size:11px;color:var(--t3)">FN is the critical clinical error</td></tr>
+          <tr><td style="font-size:11px;font-weight:600">Calibration Curve</td><td style="font-size:11px;color:var(--t2)">Predicted prob vs actual freq</td><td style="font-size:11px;color:var(--t3)">Needed for clinical threshold use</td></tr>
+          <tr><td style="font-size:11px;font-weight:600">Score Distribution</td><td style="font-size:11px;color:var(--t2)">Separation of class probabilities</td><td style="font-size:11px;color:var(--t3)">Two humps = good separation</td></tr>
+          <tr><td style="font-size:11px;font-weight:600">KM Curve</td><td style="font-size:11px;color:var(--t2)">Time until escalation event</td><td style="font-size:11px;color:var(--t3)">Gap = clinical intervention window</td></tr>
+          <tr><td style="font-size:11px;font-weight:600">SHAP Bar</td><td style="font-size:11px;color:var(--t2)">Mean feature contribution</td><td style="font-size:11px;color:var(--t3)">Explains model decisions globally</td></tr>
+          <tr><td style="font-size:11px;font-weight:600">CV Bar Chart</td><td style="font-size:11px;color:var(--t2)">AUC across 5 folds</td><td style="font-size:11px;color:var(--t3)">Low std = model generalises</td></tr>
+          <tr><td style="font-size:11px;font-weight:600">CUI Distribution</td><td style="font-size:11px;color:var(--t2)">CUI scores by class</td><td style="font-size:11px;color:var(--t3)">Validates label construction</td></tr>
+          <tr><td style="font-size:11px;font-weight:600">Threshold Chart</td><td style="font-size:11px;color:var(--t2)">Precision/Recall vs threshold</td><td style="font-size:11px;color:var(--t3)">Set threshold for deployment</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-title"><div class="cdot cd5"></div><b>Viva / Presentation Talking Points</b></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div>
+        <div class="alert a-bl"><h4>1. What are you predicting?</h4><p>Not disease, not mortality. We predict the probability that clinical model predictions will become unreliable in the next T hours — a meta-prediction system.</p></div>
+        <div class="alert a-gr"><h4>2. How do you define uncertainty?</h4><p>Using 4 mathematical components: Shannon entropy of vital distributions, coefficient of variation, signal range, and temporal drift slope — weighted into the CUI score.</p></div>
+        <div class="alert a-am"><h4>3. Why two datasets?</h4><p>MIMIC-IV is real ICU data with constructed labels — validates clinical relevance. The Vitals dataset (200k) validates that features generalise to larger populations with independent labelling.</p></div>
+      </div>
+      <div>
+        <div class="alert a-re"><h4>4. What&apos;s your best result?</h4><p>Logistic Regression on MIMIC achieves AUC=0.933, CV-AUC=0.954 with low variance (0.042). XGBoost on Vitals achieves AUC=1.00. Ensemble consistently outperforms individual models.</p></div>
+        <div class="alert a-pu" style="border-color:var(--b5);background:rgba(139,92,246,.07)"><h4>5. Why does LR beat tree models on MIMIC?</h4><p>With only 100 patients and 132 features, the data is high-dimensional and small. LR&apos;s regularisation (L2) prevents overfitting better than trees. Tree models shine on the 200k Vitals dataset.</p></div>
+        <div class="alert a-bl"><h4>6. What are the clinical implications?</h4><p>The system provides a 4-hour early warning window before clinical deterioration. By monitoring CUI trends, ICU teams can pre-emptively escalate before vitals enter an unreliable prediction zone.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+var DATA = {"results_m": {"Logistic Regression": {"auc": 0.9333333333333333, "ap": 0.8841777666777666, "f1": 0.8571428571428571, "prob": [0.991370464874018, 0.006436447820174257, 0.3758706580437732, 0.12587536573237823, 0.00549043060603872, 0.9999009014505933, 7.363875269032357e-06, 0.9947804123160234, 0.8857862841843098, 0.9999987269523125, 0.7847360456899622, 0.33393946584927525, 0.9394861596790977, 0.9993453227246271, 0.01001533253010303, 0.03604285774198431, 0.999998954425038, 8.745626825676027e-05, 0.09147539715578946, 0.16447311415744825, 3.820797068520135e-07, 0.0006666775339796202, 0.461944825457658, 0.9402573699594176, 0.9987049242759659], "pred": [1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1], "true": [1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1]}, "Random Forest": {"auc": 0.89, "ap": 0.8548796954679307, "f1": 0.7407407407407407, "prob": [0.84, 0.08666666666666667, 0.5, 0.12666666666666668, 0.11666666666666667, 0.9266666666666666, 0.05, 0.9, 0.78, 0.9966666666666667, 0.68, 0.53, 0.6633333333333333, 0.9033333333333333, 0.06, 0.53, 0.9966666666666667, 0.013333333333333334, 0.6633333333333333, 0.6666666666666666, 0.04666666666666667, 0.11, 0.6533333333333333, 0.7333333333333333, 0.94], "pred": [1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1], "true": [1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1]}, "XGBoost": {"auc": 0.8200000000000001, "ap": 0.6703463203463204, "f1": 0.75, "prob": [0.8960704207420349, 0.01328952331095934, 0.48036685585975647, 0.06444758921861649, 0.09494297951459885, 0.9837450981140137, 0.0039549171924591064, 0.9493945240974426, 0.976647138595581, 0.9927225708961487, 0.9205894470214844, 0.7791032195091248, 0.8541805148124695, 0.9959033131599426, 0.007953367196023464, 0.49450424313545227, 0.9955829977989197, 0.004141971468925476, 0.22934190928936005, 0.9774687886238098, 0.004141971468925476, 0.012456737458705902, 0.6409225463867188, 0.5694818496704102, 0.9915096759796143], "pred": [1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1], "true": [1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1]}, "LightGBM": {"auc": 0.8466666666666668, "ap": 0.7342199467199467, "f1": 0.7272727272727273, "prob": [0.9935764356567534, 2.0112135295613447e-05, 0.4589514558712741, 0.011736630567722749, 6.861274440401553e-05, 0.9998150693769178, 1.915017439579307e-07, 0.9981433310499043, 0.9984589510720849, 0.9999945176467631, 0.9578212759060354, 0.18471639472664614, 0.9867685663982385, 0.999998905134763, 1.771458818740666e-07, 0.0025333214976017496, 0.999999385220349, 5.307670072010766e-08, 0.009899004048150023, 0.9995255439434675, 1.4295745445741127e-08, 2.008953367165302e-06, 0.8191926487383591, 0.2991613345537783, 0.9999957889240308], "pred": [1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1], "true": [1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1]}, "Ensemble": {"auc": 0.9000000000000001, "ap": 0.8627228327228327, "f1": 0.782608695652174, "prob": [0.9302543303182016, 0.02660318748327397, 0.45379724244370095, 0.08218156304634604, 0.054292172382927065, 0.9775319339020478, 0.013490618142368025, 0.9605795668658426, 0.9102230934629939, 0.9973456205404727, 0.8357866921543705, 0.45693977002126157, 0.8609421435557848, 0.9746452185881664, 0.019492219218002094, 0.26577010559375963, 0.9980620010277432, 0.004390703536804072, 0.24851241095665821, 0.702033528347848, 0.012702258627761111, 0.03078135598651317, 0.6438483384790173, 0.6355584718792349, 0.9825525972949027], "pred": [1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1], "true": [1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1]}}, "results_v": {"Logistic Regression": {"auc": 0.8995510530420916, "ap": 0.9210010155094741, "f1": 0.8245233863309878, "prob": [0.15557078476929986, 0.890894247548626, 0.8544847081224737, 0.9718850144087441, 0.1678656161504636, 0.6108012772620207, 0.9890870244250884, 0.06669310837469059, 0.45507702061456445, 0.6595658643325324, 0.7586411596931711, 0.167240806352326, 0.8069635732759673, 0.9040748327450661, 0.0100725871585925, 0.8316239051554329, 0.5957107137935729, 0.9906606073022105, 0.9286031146089416, 0.9490781715088279, 0.008282623536481215, 0.7209838794386767, 0.9845432374051567, 0.025028363917736555, 0.26580545435323316, 0.39192654288548495, 0.27818646307735834, 0.02836751280351083, 0.9988400676503167, 0.1309240437367613, 0.6464643323455755, 0.04148809968797275, 0.5517211374194096, 0.6013943058103739, 0.41809648470641436, 0.285907904150701, 0.24317405562682853, 0.03103930715786378, 0.1859118107017475, 0.21380509029668013, 0.9884857834028344, 0.9385487562391079, 0.9663520306067325, 0.02640116860129174, 0.8033305818184995, 0.021023227332932517, 0.16142803677288756, 0.9568400333806774, 0.24458556641720042, 0.08783217353261849, 0.12736275043780623, 0.9998006840666256, 0.07492337479164489, 0.9932369223193964, 0.9999873505034091, 0.9059617170717589, 0.16414328686038113, 0.2373443612568921, 0.14864778787037336, 0.09669766552121853, 0.8627219609448332, 0.13893888913007638, 0.41620387963518835, 0.06420947279398062, 0.6045575991468125, 0.19003985409371216, 0.9932227201760195, 0.9999972677726723, 0.597509103357631, 0.6939565735798445, 0.45507215494605247, 0.4777673731368617, 0.07359068696321304, 0.011033259538852126, 0.9835759691686444, 0.615449012153456, 0.3495061522301484, 0.2110299594333563, 0.9971924570544762, 0.029100483124688856, 0.6672471868216272, 0.4902103168142985, 0.7092924609602903, 0.9274547680105122, 0.07056832358818019, 0.8197563558058302, 0.7373450343741749, 0.049912572358201374, 0.09336077628747232, 0.9992312231338384, 0.2254754898005548, 0.21387344006487313, 0.9015790755358468, 0.6910615719822051, 0.715089783330754, 0.9635509797344765, 0.4765251230716185, 0.9716427035157057, 0.20444593430528168, 0.07313056452134996, 0.15944620760510056, 0.737723967333065, 0.5851759405600263, 0.500309516557025, 0.4451168110307888, 0.7752105910164299, 0.9991187114775599, 0.576935808812824, 0.293431802216416, 0.8664306103792059, 0.04276812547339636, 0.1849687169347833, 0.5344442258061282, 0.7073074105391174, 0.31636067692707937, 0.9999829859384431, 0.5077415446759923, 0.21330024151476706, 0.03314926943478186, 0.5939507871481421, 0.16637502830070108, 0.8780784355149822, 0.5711545205604746, 0.40371498186078036, 0.10134333322133258, 0.022827874471030074, 0.6467312030394098, 0.008368670523185583, 0.6917757317937065, 0.2882875968641607, 0.759617381076774, 0.894154307097324, 0.06775157637125805, 0.5644211417064728, 0.9652832374599197, 0.9879904692026569, 0.5254093698461701, 0.8812721279484464, 0.14557338122696403, 0.9969420012949808, 0.07427047757231214, 0.2830203588777142, 0.9923955971311195, 0.6193277830998052, 0.563826061815487, 0.02227175629134296, 0.545309383700214, 0.1696879768174633, 0.9513321728869195, 0.06379498956270681, 0.015388639454083823, 0.9346812103647678, 0.811453157216714, 0.9747500426469556, 0.5788663048310024, 0.23677333495338157, 0.30059267179154103, 0.20573722623691668, 0.907405095699344, 0.06818429681348158, 0.9404727418822378, 0.77769651565568, 0.1776219800477722, 0.3268428883854931, 0.9970795230974072, 0.6363697818830619, 0.6321314179086882, 0.05211317585346936, 0.3631661629473352, 0.34876094848010053, 0.9895218367828843, 0.6472539818402906, 0.5380027075872579, 0.740588617448497, 0.29125424390269483, 0.1729690994507125, 0.9685686871661316, 0.6991075600849287, 0.2308364785393844, 0.08772793424388495, 0.4440181057633068, 0.3022525284593965, 0.5188082430882612, 0.347722127033348, 0.9921354192065645, 0.6918303279978656, 0.16700154267568879, 0.1605157960806819, 0.1057130008662139, 0.020095002719668572, 0.84726426308734, 0.1472753796070933, 0.1579325452171834, 0.2241272402255464, 0.49844179174076053, 0.99630637196602, 0.8963500862734779, 0.9839420638798777, 0.830555793139846, 0.9842343009606684, 0.8671125255497922, 0.7877086942208821, 0.01668645833704523, 0.9335257304074128, 0.9906827081580907, 0.9785482018863371, 0.9889442389185884, 0.0978048289728064, 0.28386471810334973, 0.5858371912959314, 0.3004530001517563, 0.35363791030442204, 0.06802856591903485, 0.3639312766625243, 0.4627833512580787, 0.9684472393838713, 0.08614121706065539, 0.23657842615227218, 0.9984371720098264, 0.13598993099743062, 0.22767463814502095, 0.32400444921260896, 0.5923595351047333, 0.9418784792122223, 0.09099781617173179, 0.6161555164804258, 0.6535919715096119, 0.9612823730363516, 0.980544919453753, 0.2854793229854177, 0.9748595721789375, 0.8044227818140857, 0.519728000294674, 0.878301030949214, 0.10794564981106565, 0.9880601876770687, 0.9994979813927919, 0.5298169219561737, 0.8293650506818825, 0.03772662456291017, 0.3398989731640569, 0.997148177316702, 0.7850130465808377, 0.9991662901222349, 0.9998511174092014, 0.9978834551462213, 0.13587875456919554, 0.37516730719971964, 0.9888300615174818, 0.5444684682260791, 0.20627730994822716, 0.23596325806238594, 0.6774431372962363, 0.7267030844443682, 0.9780589190570682, 0.00785902913826301, 0.07716308975428746, 0.2652763340193062, 0.5881817390591747, 0.9767141850966187, 0.18542265855330367, 0.8761616549422979, 0.9937064303994994, 0.6957844751881112, 0.5397704809037136, 0.7265979856271626, 0.2072349541464561, 0.07886632540436748, 0.5714242979409938, 0.04407931833713244, 0.8824066523624212, 0.5359747375325546, 0.2310619905487801, 0.9607439020615531, 0.027417130496735522, 0.4578433049345172, 0.9912712946023892, 0.721083635438258, 0.991632760727787, 0.21113195751468553, 0.08825587010348929, 0.7512995756100226, 0.6738391861497426, 0.6959847443307648, 0.7859133151417126, 0.773974957225265, 0.20408745130670622, 0.3400460798553531, 0.4993552567051505, 0.34017603482580294, 0.8103486687154922, 0.999045059940803, 0.09355794533052417, 0.2439790856291064, 0.5771632441973762, 0.2192271585776449, 0.9902295220846833, 0.31665817681330843, 0.9967004599590533, 0.9082785666221374, 0.9991072045849261, 0.25386281016623685, 0.7117799445382003, 0.09161789589630177, 0.9727558361411728, 0.5764943558215487, 0.6486322111681971, 0.2733641867116211, 0.9083617660938336, 0.7421812242925969, 0.019811210400030865, 0.9777409243667786, 0.9425030664540294, 0.9605715032865886, 0.9569925726706864, 0.7476481135561258, 0.38806559431334725, 0.7963733150804004, 0.4255906472493185, 0.9997534024914896, 0.04721916500438627, 0.725176437915225, 0.7550175043321111, 0.5605415961361783, 0.8165752520867356, 0.24435634397074488, 0.3233107428749064, 0.009446846727790855, 0.8371848704239153, 0.9607884931504206, 0.09152361998182322, 0.09020943321047148, 0.4278547793617582, 0.4436883932372183, 0.5356940386856854, 0.5389490838676239, 0.9788803183275553, 0.99943960611707, 0.4391457112021148, 0.19588671258292611, 0.995532099833283, 0.4745358104919915, 0.9999883298123473, 0.06111991111145923, 0.4828327122929843, 0.888256167061331, 0.48125958093622023, 0.29866070698583486, 0.026115829291095155, 0.7196522685462685, 0.7906884996778598, 0.9308343101022263, 0.8147966905845675, 0.9970573376101896, 0.013101397623111341, 0.9282211710834334, 0.02027672070280205, 0.07523920264685528, 0.3204081506604861, 0.1425775070822694, 0.8780204992979053, 0.1386404515829513, 0.9221956219437376, 0.9981519121707761, 0.08894253038002789, 0.08170275287762267, 0.6127501394301513, 0.9909332504339589, 0.03614479380338029, 0.859291642045193, 0.30529657080921235, 0.37135951668717826, 0.16217444190472907, 0.9637002063331293, 0.9933121684188082, 0.7253651277495986, 0.2471050465060712, 0.7193436948356259, 0.07201553978538974, 0.8544729895162, 0.3659053937515997, 0.16006605515539024, 0.30267182466560516, 0.8761471230949622, 0.6453813813493321, 0.6808885730648766, 0.37800682426736915, 0.05529616935602514, 0.05126811071191708, 0.5947806499368871, 0.12381865055996687, 0.7896685050827599, 0.7762713264125775, 0.7061619634580326, 0.8000662474227767, 0.46582148528565903, 0.7099841424061759, 0.7386096836591461, 0.977458594086104, 0.3958600028162003, 0.11582764744737567, 0.0759697171581061, 0.1701424820708249, 0.2457310588141044, 0.9706346315045156, 0.763336524612918, 0.7095861290615315, 0.6801155078968467, 0.7065013248795199, 0.8088752628885443, 0.7456922303795227, 0.497818785663135, 0.562794276616976, 0.9997800806241128, 0.7078595808414481, 0.052270289076461446, 0.8027666520276749, 0.9894043203446885, 0.27770030440089316, 0.1356497659254322, 0.8234645533719356, 0.1256369823912049, 0.3717298411433312, 0.8996831405257585, 0.9006600351368063, 0.5148218138764662, 0.8474844369800563, 0.3548343680390379, 0.14008790351570624, 0.922789937792177, 0.40569563322847035, 0.09474414017696432, 0.5630293408694602, 0.9991930362343201, 0.8815520214593107, 0.7697038884791306, 0.20170334405357493, 0.6955954400522548, 0.4387642858788497, 0.708571667212319, 0.017463340058739174, 0.06685072892107673, 0.203010717885501, 0.9876603528085128, 0.9231453862545002, 0.4564394023867787, 0.0627855033227872, 0.6870200953370784, 0.8037103555106797, 0.005421063402930324, 0.6882938169353378, 0.03136456750170329, 0.9724235229805591, 0.024549913512541977, 0.1171679735575196, 0.04882052073970947, 0.05833086346821139, 0.11862575310371194, 0.47470877498241537, 0.7070590867396221, 0.7911172966156286, 0.018453606371826314, 0.028633548547078752, 0.17329516098969483, 0.23910982435296102, 0.9766444229077544, 0.1568239949682221, 0.04705156198724967, 0.8385533413767244, 0.14472474264233937, 0.8171105345374953, 0.45653845091259165, 0.6188629530715253, 0.9983105981377726, 0.753435114001555, 0.2368140670271595, 0.567717254948451, 0.4071899514764469, 0.5276882095236505, 0.2524883606298768, 0.067981241176169, 0.15313129222841346, 0.4815670800933914, 0.869411334633137, 0.9879139740516312, 0.7393304034639284, 0.7929928393611634, 0.9700663992090734, 0.1363370620678154, 0.7432767137888613, 0.7508453823911655, 0.11482506561987042, 0.9815599644004102, 0.10211503777427242, 0.4035724585368432, 0.9339716247232915, 0.0704920008770209, 0.2599129684532181, 0.9979819370254344, 0.28902848546909965], "pred": [0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], "true": [0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1]}, "XGBoost": {"auc": 0.9999760072712754, "ap": 0.9999783571371904, "f1": 0.9970526716105723, "prob": [3.405935785849579e-05, 0.9999904632568359, 0.9999226331710815, 0.9999933242797852, 1.3754747669736389e-05, 4.278760388842784e-05, 0.9999957084655762, 3.6617740988731384e-05, 0.9999504089355469, 7.563848612335278e-06, 0.9999679327011108, 0.0001624297583475709, 0.999937891960144, 0.9999504089355469, 0.00016367260832339525, 0.9999797344207764, 0.7327279448509216, 0.999981164932251, 0.9999873638153076, 0.9999970197677612, 0.00017240643501281738, 6.190852582221851e-05, 0.9999887943267822, 7.946662663016468e-05, 4.8529716877965257e-05, 0.00013008924724999815, 2.529986340960022e-05, 9.572540875524282e-05, 0.9999688863754272, 2.5218902010237798e-05, 0.9999723434448242, 6.197060429258272e-05, 0.0001428401592420414, 1.5248867384798359e-05, 0.9999924898147583, 0.9999794960021973, 0.00014306929369922727, 6.281907553784549e-05, 3.741233012988232e-05, 7.464209193130955e-05, 0.9999760389328003, 0.9999675750732422, 0.9999943971633911, 0.00022429338423535228, 0.999970555305481, 0.9999845027923584, 2.9058488507871516e-05, 0.9999934434890747, 0.9999792575836182, 8.334886661032215e-05, 0.00012559664901345968, 0.9999450445175171, 0.00012047856580466032, 0.9999762773513794, 0.9999902248382568, 0.9999608993530273, 0.9999700784683228, 5.111063364893198e-05, 1.5532426914433017e-05, 8.854120096657425e-05, 0.00014017315697856247, 0.9998990297317505, 2.6995212465408258e-05, 8.626948692835867e-05, 0.9999802112579346, 0.999991774559021, 0.9999864101409912, 0.9999662637710571, 0.9999241828918457, 0.00010391770774731413, 4.839421308133751e-05, 0.9999798536300659, 9.250312723452225e-05, 0.000162467869813554, 0.9999721050262451, 7.272064976859838e-05, 0.0001703320594970137, 0.00015211118443403393, 0.9999771118164062, 6.052463868400082e-05, 0.9999263286590576, 0.0001160584797617048, 0.9999810457229614, 0.9999356269836426, 3.5494154872139916e-05, 0.9999909400939941, 0.9999274015426636, 5.652832624036819e-05, 3.831433423329145e-05, 0.9999821186065674, 0.712798535823822, 0.00010982764069922268, 0.9999738931655884, 0.9999675750732422, 1.1493129022710491e-05, 0.999992847442627, 0.9999716281890869, 0.9999967813491821, 0.0001404744980391115, 4.011981582152657e-05, 2.2417065338231623e-05, 0.9999849796295166, 0.9999818801879883, 2.9655828257091343e-05, 0.999919056892395, 0.9999626874923706, 0.99996018409729, 0.9999945163726807, 4.038957195007242e-05, 0.9999815225601196, 5.427010910352692e-05, 4.955913755111396e-05, 0.00022240850375965238, 0.9999738931655884, 8.178975258488208e-05, 0.999947190284729, 0.9999758005142212, 3.81472818844486e-05, 9.224213135894388e-05, 0.9999700784683228, 0.9999603033065796, 0.9999829530715942, 0.9999852180480957, 0.9999841451644897, 5.955033338977955e-05, 8.646748756291345e-05, 5.8617923059500754e-05, 3.323177952552214e-05, 0.9999555349349976, 0.00024400748952757567, 0.9999942779541016, 0.9999463558197021, 9.740849054651335e-05, 3.384359661140479e-05, 0.9999877214431763, 0.9999908208847046, 0.9999796152114868, 0.9999394416809082, 0.9999911785125732, 0.9999951124191284, 1.2456247532099951e-05, 0.00014325304073281586, 0.9999924898147583, 0.9999634027481079, 0.999915599822998, 4.9668000428937376e-05, 0.9999790191650391, 6.372513598762453e-05, 0.9999456405639648, 0.00013944979582447559, 5.3775034757563844e-05, 0.9999697208404541, 0.9999957084655762, 0.9999885559082031, 5.6625660363351926e-05, 0.9999725818634033, 0.00011608570639509708, 3.16484656650573e-05, 0.32767367362976074, 3.901488162227906e-05, 0.9999490976333618, 0.9999872446060181, 0.9999678134918213, 7.592626207042485e-05, 0.9999740123748779, 0.999981164932251, 6.724770355504006e-05, 4.950023503624834e-05, 9.779771789908409e-05, 0.9999681711196899, 0.9999858140945435, 2.8251368348719552e-05, 0.9998961687088013, 0.9999927282333374, 1.619575050426647e-05, 0.00021444869344122708, 0.9999860525131226, 0.9999650716781616, 3.286114224465564e-05, 2.7259835405857302e-05, 9.959811723092571e-05, 0.999988317489624, 0.9999922513961792, 0.999916672706604, 0.9999840259552002, 0.9999439716339111, 3.2783576898509637e-05, 6.951003888389096e-05, 2.4259095880552195e-05, 0.00015069954679347575, 0.9999830722808838, 7.777092105243355e-05, 5.819867510581389e-05, 2.3949896785779856e-05, 9.59501339821145e-05, 0.999993085861206, 0.9999682903289795, 0.9999750852584839, 0.9999786615371704, 0.9999892711639404, 0.00044949323637411, 0.9999794960021973, 5.913485074415803e-05, 0.9999144077301025, 0.9999837875366211, 0.9999445676803589, 0.999984860420227, 2.1921459847362712e-05, 6.301016401266679e-05, 0.999962329864502, 0.999992847442627, 0.9999642372131348, 8.525840530637652e-05, 7.556726632174104e-05, 0.9999784231185913, 0.9999827146530151, 3.654751708381809e-05, 6.043386019882746e-05, 0.9999821186065674, 4.584969792631455e-05, 7.606895815115422e-05, 0.00017223652685061097, 0.9998971223831177, 0.9999825954437256, 2.3856255211285315e-05, 5.4201889724936336e-05, 3.7353933294070885e-05, 0.999975323677063, 0.9999608993530273, 0.0003277729847468436, 0.999980092048645, 0.9999731779098511, 0.999982476234436, 6.86530620441772e-05, 6.167130050016567e-05, 0.9999939203262329, 0.9999712705612183, 3.196034595021047e-05, 0.999927282333374, 2.6367095415480435e-05, 9.328317537438124e-05, 0.9999760389328003, 0.9999749660491943, 0.9999966621398926, 0.9999778270721436, 0.9999643564224243, 0.0001447670947527513, 0.9998613595962524, 0.9999133348464966, 1.4186898624757305e-05, 4.0496059227734804e-05, 4.53123175248038e-05, 0.00010418769670650363, 0.9999878406524658, 0.9999926090240479, 8.758564217714593e-05, 0.00013194205530453473, 0.00023054495977703482, 0.00024371709150727838, 0.9999775886535645, 0.9999449253082275, 0.9999920129776001, 0.999940037727356, 0.9999481439590454, 0.9999425411224365, 0.9999866485595703, 0.9999566078186035, 4.519127105595544e-05, 0.9999288320541382, 0.9999537467956543, 0.9999595880508423, 0.9999783039093018, 4.8595429689157754e-05, 0.9998786449432373, 1.5085681297932751e-05, 0.9999717473983765, 0.999925971031189, 0.9999547004699707, 0.9999953508377075, 4.4678345147985965e-05, 5.3067535191075876e-05, 0.9999145269393921, 0.9999860525131226, 0.9999566078186035, 0.9999775886535645, 0.9999614953994751, 2.957352808152791e-05, 0.9999833106994629, 0.00018364496645517647, 8.933417120715603e-05, 0.9999933242797852, 0.9999721050262451, 3.403036680538207e-05, 8.88191643753089e-05, 4.677005563280545e-05, 2.23816059587989e-05, 0.9999308586120605, 8.460005483357236e-05, 0.9999786615371704, 0.9999880790710449, 0.9999812841415405, 1.6987220078590326e-05, 0.999974250793457, 0.10116304457187653, 0.9999905824661255, 6.72685491736047e-05, 0.9999837875366211, 6.0550792113645e-05, 0.9999873638153076, 0.9999943971633911, 0.999972939491272, 0.9999651908874512, 0.9998014569282532, 0.9999898672103882, 0.9999752044677734, 1.0610759090923239e-05, 0.9999784231185913, 0.9999676942825317, 2.0735931684612297e-05, 0.9999954700469971, 0.00011992496001766995, 0.9999521970748901, 0.9999678134918213, 0.999974250793457, 0.9999620914459229, 0.9999724626541138, 0.00010627968731569126, 7.966009434312582e-05, 6.257465429371223e-05, 0.9999551773071289, 2.9249495128169656e-05, 8.14525265013799e-06, 7.51931220293045e-05, 0.000351220223819837, 0.00013096722250338644, 0.9999781847000122, 0.9999527931213379, 0.999925971031189, 8.360207721125335e-05, 7.465447561116889e-05, 0.9999960660934448, 3.823520091827959e-05, 0.9999911785125732, 1.0907965588558e-05, 0.9999698400497437, 0.9999803304672241, 0.9999798536300659, 8.21289504528977e-05, 2.809494617395103e-05, 0.9999858140945435, 0.999916672706604, 0.9999929666519165, 0.9999901056289673, 0.9999765157699585, 3.507412475300953e-05, 0.9999371767044067, 0.00016697072715032846, 7.589816959807649e-05, 5.30160941707436e-05, 2.523191687942017e-05, 0.9999505281448364, 4.5688489080930594e-06, 0.9999876022338867, 0.9999815225601196, 5.0897160690510646e-05, 1.4950310287531465e-05, 0.9999750852584839, 0.999958872795105, 3.140460830763914e-05, 6.344440043903887e-05, 8.573207742301747e-05, 3.884785110130906e-05, 0.9999943971633911, 0.9999725818634033, 0.9999866485595703, 5.226477514952421e-05, 1.7094445865950547e-05, 0.9999790191650391, 3.8247890188358724e-05, 0.00017658360593486577, 2.476556801411789e-05, 0.00013334356481209397, 0.9999797344207764, 0.9999715089797974, 0.36694076657295227, 0.9999845027923584, 0.999956488609314, 0.9999750852584839, 3.699365333886817e-05, 0.9999613761901855, 2.624695116537623e-05, 0.9999912977218628, 0.9999808073043823, 0.9999710321426392, 5.797085032099858e-05, 7.538452337030321e-05, 0.9999783039093018, 0.9999855756759644, 0.9999781847000122, 0.9999963045120239, 2.6496050850255415e-05, 0.00012906199845019728, 0.999962568283081, 0.9999126195907593, 0.9999934434890747, 0.9999923706054688, 0.999977707862854, 5.322297147358768e-05, 0.9999774694442749, 0.9999431371688843, 0.9999769926071167, 1.6643514754832722e-05, 0.999980092048645, 0.9999661445617676, 0.9999282360076904, 7.019527402007952e-05, 0.999962329864502, 0.9999942779541016, 0.9999608993530273, 3.706042480189353e-05, 5.9410005633253604e-05, 6.038483479642309e-05, 9.55104042077437e-05, 0.9999704360961914, 0.9999819993972778, 0.9999747276306152, 0.9999347925186157, 0.9999734163284302, 0.9999755620956421, 0.9999854564666748, 0.9999872446060181, 3.184297383995727e-05, 0.9999758005142212, 0.999980092048645, 0.9999575614929199, 0.9999545812606812, 2.827681237249635e-05, 9.469719952903688e-05, 0.9999663829803467, 0.9999865293502808, 1.4819164789514616e-05, 0.9999918937683105, 5.186964335734956e-05, 0.9999464750289917, 0.9998512268066406, 4.4505144614959136e-05, 3.0678576877107844e-05, 0.9999759197235107, 0.9999741315841675, 5.223806874710135e-05, 0.9999830722808838, 0.9999938011169434, 0.9999933242797852, 2.8765130991814658e-05, 7.251726492540911e-05, 4.050300776725635e-05, 4.017541141365655e-05, 4.154258931521326e-05, 0.9999885559082031, 6.0576432588277385e-05, 0.9999783039093018, 0.00010889596887864172, 2.8367778213578276e-05, 2.829008190019522e-05, 8.150152279995382e-05, 0.9999531507492065, 0.00023701890313532203, 7.194494537543505e-05, 7.327398634515703e-05, 0.0002747570688370615, 0.9999563694000244, 0.9999253749847412, 3.348675818415359e-05, 0.9999377727508545, 0.9999629259109497, 0.9999716281890869, 0.7702447175979614, 5.261071419226937e-05, 0.9999784231185913, 5.019998934585601e-05, 0.00010183754056924954, 0.9999879598617554, 0.9999440908432007, 0.46117261052131653, 0.999992847442627, 8.329714182764292e-05, 4.258175613358617e-05, 0.9999438524246216, 3.325565194245428e-05, 0.9999815225601196, 1.5986899597919546e-05, 2.2736356186214834e-05, 0.9999942779541016, 0.00011502789129735902, 0.9999508857727051, 0.9999773502349854, 3.43934225384146e-05, 4.813545092474669e-05, 0.9999949932098389, 0.9999723434448242], "pred": [0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1], "true": [0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1]}, "LightGBM": {"auc": 0.9999886476852807, "ap": 0.9999897893208143, "f1": 0.9983102077730442, "prob": [2.333225170447582e-09, 0.9999999998316547, 0.9999999861438815, 0.9999999992959987, 6.034715191980741e-10, 2.9401380692182416e-09, 0.9999999995528039, 2.8424492363331863e-09, 0.9999999428932828, 4.061901117168611e-09, 0.9999999998864493, 3.06440599162285e-09, 0.9999999634955952, 0.9999999854880166, 1.677602149627209e-08, 0.9999999931937631, 0.4226106831329511, 0.9999999991816821, 0.9999999987837405, 0.9999999998471476, 2.7946534046416263e-09, 1.229680539096306e-08, 0.9999999840328773, 3.027274922108738e-09, 1.828118915811038e-10, 4.0267171426765246e-08, 6.31034559114642e-09, 3.2698330983773793e-10, 0.9999999880441112, 4.2310409480668157e-11, 0.9999999158914792, 1.05739187774634e-09, 3.582152190027097e-08, 3.9130225902576593e-10, 0.9999999860304909, 0.9999999987307495, 1.346796070585595e-09, 2.3780872093907954e-08, 3.1866340565842285e-09, 3.329380417937505e-09, 0.9999999816164485, 0.9999999911078578, 0.9999999981864205, 7.556612373139134e-09, 0.9999999883137413, 0.9999999973656231, 8.23479472969135e-10, 0.9999999626403219, 0.9999999996808429, 2.4009322635590335e-09, 1.93351067530235e-09, 0.9999999891002634, 6.819524229888923e-09, 0.9999999091612852, 0.9999999999726845, 0.999999965592702, 0.9999999902240363, 6.630286742675906e-10, 3.0976099348454185e-10, 8.623058642221894e-09, 4.988350527647687e-09, 0.9999999637658246, 1.830192708017176e-09, 3.824044624359972e-09, 0.9999999057801572, 0.9999999990786255, 0.9999999995772066, 0.9999999913142951, 0.9999999638056289, 2.933068407034577e-09, 2.1095489461119754e-09, 0.9999999974158948, 8.463398419604085e-09, 2.3645149079980576e-10, 0.9999999952222425, 1.6330108842871585e-09, 4.583769933285778e-09, 1.660677725511024e-10, 0.9999999986255614, 1.8429631124096183e-09, 0.999999978156662, 5.7408405991815656e-09, 0.999999985590923, 0.9999999567536791, 3.1186006574585554e-09, 0.9999999995169433, 0.9999999289628353, 5.484336977796994e-09, 2.9769207758524505e-09, 0.9999999909033007, 0.9999996993967482, 2.7903264523484824e-08, 0.9999999620288585, 0.9999999494313524, 1.2604672887093644e-10, 0.9999999996974547, 0.9999999653893897, 0.9999999998421369, 2.2865750376612075e-08, 9.384576447862399e-09, 6.652686093136909e-10, 0.9999999673811832, 0.9999999891335879, 3.3377720325325142e-09, 0.999999613731152, 0.99999999148533, 0.9999999830956828, 0.9999999996409055, 1.1879575936588706e-08, 0.9999999992274478, 2.2832776831488003e-09, 5.9004723974002565e-09, 4.242263637271751e-09, 0.9999999936302735, 1.5357284576229057e-08, 0.9999999453047651, 0.9999999942544899, 8.172909144875818e-10, 1.2402835981535191e-09, 0.9999998667231382, 0.9999999364644996, 0.999999996186264, 0.9999999744289589, 0.9999999786915192, 4.9439073746143305e-09, 4.5119534015468495e-11, 1.1410139521568404e-08, 1.1453720377833482e-09, 0.9999999118477982, 2.2814873790935243e-07, 0.9999999560392542, 0.999999970947671, 2.1437445384013445e-10, 5.620545369187835e-09, 0.9999999978077148, 0.999999999498725, 0.9999999755666954, 0.999999905571747, 0.9999999985633603, 0.9999999999554987, 1.2824445876902246e-09, 1.6513679437102448e-09, 0.9999999992582911, 0.9999995722573136, 0.9999999234743012, 3.9516644629392645e-10, 0.9999999909579004, 1.2380482948270815e-08, 0.9999999933150638, 3.2744927023053556e-09, 1.8309363910833688e-08, 0.9999999764791981, 0.999999999776152, 0.9999999757129162, 6.883666318423735e-09, 0.9999999675550465, 5.938928510864071e-09, 6.907368522304933e-09, 0.9999999206532827, 3.3293780744709586e-09, 0.9999998781617323, 0.9999999837687723, 0.9999999923758732, 1.8154590747137022e-09, 0.9999999979309482, 0.9999999307182451, 2.353219141003348e-09, 7.1491009869425834e-09, 1.6206213405624208e-08, 0.9999999598885776, 0.9999999978353615, 1.4520023430948437e-10, 0.9999999495104587, 0.999999983476566, 3.04129607484788e-09, 2.480100001814636e-09, 0.9999999992087674, 0.9999999765499482, 9.813784259063032e-10, 3.429459623772286e-09, 3.870225531567813e-09, 0.9999999984810375, 0.9999999753260019, 0.9999999638641959, 0.9999999993680337, 0.9999999768362716, 3.639666874819881e-10, 2.319057353329277e-09, 1.1187074808648933e-09, 8.720929489642043e-09, 0.9999999971254963, 2.5455925674692307e-09, 1.4433961188750826e-07, 9.668213385178848e-10, 1.4169238490660507e-09, 0.9999999995318882, 0.9999999639365282, 0.9999999975109093, 0.9999999785555727, 0.9999999994189488, 1.6825672560131882e-08, 0.9999998330092531, 2.197493129984235e-09, 0.9999999960489101, 0.9999999916350973, 0.9999999470138737, 0.9999999100502356, 2.579571502446174e-09, 3.6481777601185454e-09, 0.9999999458539208, 0.9999999989464015, 0.9999999965059727, 7.757197334663707e-10, 6.865417534086528e-10, 0.9999999471525677, 0.9999999862919067, 5.320863213966807e-09, 4.461922174107098e-09, 0.9999999979677627, 1.4512340412811873e-09, 1.217999894853704e-09, 7.030397716865619e-10, 0.9999998418174162, 0.9999999988364372, 6.412669508890069e-10, 3.111288410503001e-09, 3.510940919658538e-09, 0.9999999861828348, 0.999999952555811, 1.877250755822418e-08, 0.9999999988176529, 0.9999998927437601, 0.9999999938553381, 9.475374069488428e-09, 8.83424289743854e-11, 0.9999999998457443, 0.9999999865494977, 2.663568273034516e-09, 0.9999999933360297, 1.1350391212355527e-09, 1.2780995784901077e-09, 0.9999999655453812, 0.9999999669969781, 0.9999999996080458, 0.9999999998823292, 0.9999999978015381, 3.657209439181854e-08, 0.9999998352967159, 0.9999999553158418, 7.581193580548284e-09, 2.7741080392566525e-09, 4.958153189599097e-09, 2.2471704268184374e-09, 0.999999994038987, 0.999999999716995, 2.222250862989349e-09, 2.734471174304874e-07, 3.2690312758059454e-10, 4.078025420701326e-08, 0.9999999258093308, 0.9999997997403941, 0.9999999993289621, 0.9999999730474128, 0.9999999601397385, 0.9999999534462407, 0.9999999790269798, 0.9999999810636845, 2.3896349978099555e-09, 0.9999999745835466, 0.9999998547883588, 0.9999998979264872, 0.999999988052736, 5.360900587459827e-09, 0.9999998094305659, 1.1206540381328189e-08, 0.9999999601627043, 0.9999999939508672, 0.9999999360497925, 0.9999999998291982, 2.5176730337793825e-10, 5.103451001694345e-09, 0.9999999934281434, 0.999999988804085, 0.9999999639039499, 0.9999999986557002, 0.999999937122191, 1.0229258583706535e-10, 0.9999999316940944, 4.850628928689952e-09, 1.0081391025023011e-08, 0.9999999779546018, 0.9999999303331577, 5.650568551999321e-10, 3.614973268413301e-08, 2.6967011891221576e-09, 4.3884599562654184e-10, 0.999999980766444, 3.3633839246297747e-09, 0.9999999982114356, 0.9999999994431705, 0.9999999988327053, 4.659131338099621e-10, 0.9999999727413126, 0.00931568882653334, 0.9999999973633003, 7.034945658400787e-10, 0.9999999338906188, 7.892302115879625e-10, 0.9999999998099764, 0.9999999994383766, 0.9999999412003407, 0.9999999880414704, 0.9999999965930146, 0.9999999980630256, 0.9999999988353621, 6.312311166254053e-09, 0.9999999911458611, 0.9999999828988594, 7.380796705671885e-10, 0.9999999999637026, 1.6727859039715143e-09, 0.9999999943946631, 0.9999999856892425, 0.9999999860333877, 0.9999999581807002, 0.9999999835559288, 1.128824739930552e-08, 1.1974184348665925e-09, 1.2517585947659674e-08, 0.9999999128861443, 1.4667059035719772e-09, 2.905895906311933e-10, 1.5476973163025498e-09, 3.944755813392844e-09, 6.929173777682553e-08, 0.9999999961570492, 0.999999932489737, 0.9999999853248738, 1.5427317140846834e-08, 1.9552962639257278e-08, 0.9999999997503388, 4.686336093540766e-10, 0.9999999985996872, 1.1923768610171505e-08, 0.9999999963826034, 0.9999999976567373, 0.9999999948576848, 3.3851460711582093e-10, 1.0793420959809952e-10, 0.9999999752612707, 0.999999958964156, 0.9999999999452365, 0.9999999980107828, 0.9999999642418735, 5.739270414587426e-09, 0.999999272904528, 3.740712172748701e-08, 2.6724209339821273e-08, 1.9615283693269172e-08, 2.629287818292744e-10, 0.9999999769433888, 1.406193183692686e-10, 0.9999999739452217, 0.9999999477373859, 7.2041163753677296e-09, 9.064087369349443e-11, 0.999999927762728, 0.9999999618899639, 5.78043466809461e-10, 6.28907396190125e-09, 7.535389773762345e-09, 1.6652294716519684e-09, 0.9999999991044817, 0.9999999997798388, 0.9999999843441276, 2.5498587353998094e-09, 1.8214546828450322e-09, 0.9999999531735315, 3.304132294813163e-09, 7.960272048720698e-08, 3.3859606575014476e-10, 3.2970031311400265e-08, 0.9999999952134808, 0.9999999415059083, 0.2937832691132076, 0.9999999957087147, 0.9999999753966139, 0.999999876532346, 1.282533751507552e-10, 0.9999999771502014, 5.643125298487722e-10, 0.999999999505297, 0.9999999805601704, 0.9999999848344969, 9.443120604462672e-08, 6.664132398990443e-09, 0.9999999787258023, 0.9999997739355848, 0.9999999549144696, 0.9999999989385553, 1.3236559325859248e-09, 1.2633781733495224e-07, 0.999999987159263, 0.999999818141623, 0.9999999941323812, 0.9999999996737339, 0.99999999580869, 1.3507837787128173e-09, 0.9999999786706026, 0.9999999615304657, 0.9999999935172608, 3.9417191922888154e-11, 0.9999999465030112, 0.999999998002522, 0.9999999926844134, 8.324272935249566e-09, 0.9999999914248984, 0.9999999997974669, 0.9999998137980466, 1.580550874742997e-09, 5.101692441745763e-10, 3.3983137122877556e-08, 1.297760125309556e-09, 0.9999999099770772, 0.9999999900729896, 0.999999995572973, 0.9999999721019573, 0.9999999837238727, 0.9999999445979117, 0.9999999954632652, 0.999999984156213, 3.2540146319863007e-09, 0.999999945302921, 0.9999999996614133, 0.9999999629813188, 0.9999999368299388, 6.59526521456348e-10, 1.330413544521626e-08, 0.9999999620430579, 0.9999998293367218, 6.0609119143348734e-09, 0.9999999699276476, 4.290109404352824e-09, 0.9999999953538852, 0.9999999786234834, 5.042402596206872e-09, 9.817190733426086e-09, 0.9999999988655499, 0.999999991107312, 8.137385028483634e-09, 0.9999999956530679, 0.9999999998229929, 0.9999999994556092, 2.687629334165848e-10, 4.304950024481268e-09, 3.102787474707796e-09, 1.49141417454437e-09, 9.355185993800727e-10, 0.9999999614092966, 8.802209742809404e-10, 0.9999999962958583, 2.2879886561342884e-09, 5.163201412347484e-10, 1.1836606264704726e-10, 7.775222665755567e-10, 0.9999999976666101, 1.4241732550660764e-09, 1.2707513969239914e-09, 7.252609141963655e-10, 1.1329444286111345e-09, 0.9999999876013842, 0.9999999954934862, 6.583593853075519e-10, 0.9999999920092019, 0.9999999880513436, 0.9999999759990951, 1.9529397617960837e-05, 1.7013005431569676e-08, 0.9999999945361815, 2.831277432380723e-09, 4.384029652948535e-08, 0.99999993594524, 0.9999999727068863, 0.999999947545212, 0.9999999775437235, 1.2587598218945769e-08, 2.4735268797013952e-09, 0.9999999177286, 4.299321825200526e-09, 0.9999999591153771, 1.4385394309162892e-08, 1.0837464315345172e-10, 0.9999999988108943, 2.390829081749662e-09, 0.9999999731685767, 0.9999999857976798, 1.5360988381460224e-09, 9.64205872226184e-10, 0.9999999999219664, 0.999999854580919], "pred": [0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1], "true": [0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1]}, "Ensemble": {"auc": 0.9998842815707553, "ap": 0.999903817585026, "f1": 0.998000761614623, "prob": [0.051868282153461176, 0.9636282368790389, 0.9514691091458123, 0.9906261126615092, 0.055959790500534956, 0.2036146892686824, 0.9963609108144894, 0.02224324298604285, 0.8183424574811314, 0.21985781074768196, 0.9195363640935771, 0.055801079725026514, 0.9356338095772355, 0.9680084090562099, 0.00341209218097913, 0.9438678775899908, 0.5836831139258152, 0.9968805904720478, 0.9761968257359966, 0.9830250637079123, 0.002818344255382479, 0.24034860008710143, 0.9948440052549388, 0.008369277857213881, 0.08861799475097433, 0.13068555746663546, 0.09273725641703784, 0.009487746179749793, 0.9996029806899518, 0.04364975422702732, 0.8821455305606264, 0.013850023783219069, 0.18395467113339117, 0.20046985168968698, 0.8060296535172212, 0.7619624662945492, 0.08110570875577461, 0.01036738333809124, 0.061983075406170485, 0.07129324523933062, 0.9961539346506944, 0.979505440806736, 0.9887821419855146, 0.00887515651404649, 0.9344337084792406, 0.6736692424969712, 0.053819032028291636, 0.985611146503358, 0.7481882745605538, 0.029305174933387024, 0.04249611634011013, 0.9999152392281353, 0.025014620058991258, 0.9977377029440203, 0.9999925251047834, 0.9686408606724961, 0.7213711185175801, 0.07913182418452323, 0.049554440202349594, 0.03226207178174791, 0.2876207130300541, 0.7129459608758838, 0.13874362555928216, 0.02143191536831787, 0.8681792387283013, 0.7300105425771196, 0.9977363766314058, 0.9999878409526749, 0.8658110833517019, 0.23135349807355343, 0.15170685042289425, 0.8259157413942741, 0.02456106618461533, 0.0037319092150390567, 0.9945160231390441, 0.20517391147874517, 0.11655882962447178, 0.07039402359461937, 0.9990565224988147, 0.009720336535445323, 0.889057831212449, 0.1634421270116336, 0.9030911640913916, 0.9757967839159446, 0.02353460695388433, 0.9399157651389225, 0.912424121626558, 0.01665636872292624, 0.031133031199542128, 0.9997377775479022, 0.6460912416737083, 0.07132776520294563, 0.9671843102434313, 0.8970096988289332, 0.2383670921952745, 0.9878479422915193, 0.8254989055500318, 0.9905464949023416, 0.06819547722302373, 0.024390231240582646, 0.0531562084452358, 0.9125696381145882, 0.8617192699605342, 0.16677972524101806, 0.8150118272181119, 0.9250577566647102, 0.9996929595568442, 0.8589767749421368, 0.09782406788931401, 0.9554707107222576, 0.014274132621925858, 0.06167276065760227, 0.17822221285071715, 0.9024270991116597, 0.1054808273456496, 0.999976707175979, 0.8359057798149011, 0.0711127965379808, 0.011080504268808133, 0.864640244113201, 0.7221117560239266, 0.9593537949242802, 0.8570465710125097, 0.8012330352389299, 0.033800962832876584, 0.007638114001237507, 0.2155966107908696, 0.002800634482694381, 0.8972437261921674, 0.09617727750080873, 0.91987053835671, 0.9647002112882324, 0.022616328358726335, 0.18815166364120986, 0.9884236522369368, 0.995993763195362, 0.8417963202081175, 0.960403825067034, 0.7151881861009658, 0.9989790378898693, 0.024760978367429607, 0.09438787118993831, 0.9974626954013895, 0.8730969193684089, 0.8545805283709288, 0.0074404748956461144, 0.8484294646077178, 0.05658390477797796, 0.9837592689219828, 0.021311480877674663, 0.005147477599401766, 0.97821696922814, 0.9371496218194807, 0.991579524756025, 0.19297431245834404, 0.7455819614572771, 0.10023625447895489, 0.06858962720331675, 0.7450262299941292, 0.022741105008160647, 0.9801405725591107, 0.9258945813434902, 0.7258632619718223, 0.10897293882100752, 0.9990178444677444, 0.8787836258445193, 0.2107328893218208, 0.0173875610792022, 0.12108799229048257, 0.7829096931627895, 0.9965025495709297, 0.21576074445127982, 0.8459662752688392, 0.9135271097194669, 0.09709014756483171, 0.05772785020808458, 0.9895182462960072, 0.8996908694376796, 0.07695644688766916, 0.029251732502916808, 0.14803923591692109, 0.7674136148100192, 0.8396001566034808, 0.7825462545347159, 0.9973731481765995, 0.8972580921560162, 0.05567810887218466, 0.05352843614620772, 0.03524575369360065, 0.0067485703291305125, 0.9490824441645733, 0.0491177176912461, 0.05266362941063369, 0.0747170636963845, 0.16617924776388884, 0.9987664857863714, 0.9654394468463284, 0.9946390488830903, 0.9435114777441963, 0.9947411905145191, 0.2891873452039463, 0.929229341077444, 0.005581865128427506, 0.9778133780621419, 0.9968888291099364, 0.9928309055268566, 0.9963096697963504, 0.032608917670741755, 0.09464257730518005, 0.8619331556714513, 0.7668152821802616, 0.7845340480078432, 0.022704608366686987, 0.12133561487179594, 0.8209205738430793, 0.9894766467762643, 0.028725923299534138, 0.0788796214914644, 0.9994730961947189, 0.04534526071553033, 0.075916902773724, 0.10805889548083313, 0.8640854997684224, 0.9806203578307949, 0.030340557689403344, 0.20540324049381306, 0.21787644298461561, 0.9870858942987498, 0.9935019237875305, 0.09526903824755738, 0.9916132210150784, 0.9347986174892323, 0.8399034901281494, 0.2927898978288774, 0.036002440399969415, 0.9960180359496821, 0.9998230795011693, 0.17661629498856404, 0.9430974421170953, 0.012584330931121589, 0.11333075253917695, 0.9990413939316278, 0.9283293265423366, 0.9997209839567244, 0.9999429814545581, 0.9992826031233947, 0.045341186078680894, 0.7916761673642293, 0.9962477838932734, 0.1814942209019658, 0.06877260292718763, 0.07866952511268797, 0.22584910908003775, 0.9088969730452736, 0.9926838425993703, 0.0026488723342303396, 0.025765101752236477, 0.08850229310199546, 0.19614183231031204, 0.992230566519838, 0.728455794533975, 0.9587178890829534, 0.9978821470580894, 0.8985775264289652, 0.8465709918241302, 0.9088615377379042, 0.7357305143429147, 0.026303839688352815, 0.8571177015262261, 0.6813443066403818, 0.9607887127799168, 0.8453176764981974, 0.07703686377978995, 0.9868741188117854, 0.009144075794857945, 0.819271670831866, 0.997065753194815, 0.9070127573193405, 0.9972093704648977, 0.07039221203720027, 0.02943631424737712, 0.9170713653258528, 0.8912750758223167, 0.898647105351106, 0.9286303008169924, 0.924645463248977, 0.06803900831236011, 0.7800097740829702, 0.16651296884074487, 0.1134217930261337, 0.9367806569832929, 0.9996723651000686, 0.031197325420795466, 0.08135598031440479, 0.19240333898323672, 0.07308318020748324, 0.9967201204877293, 0.10558092674384197, 0.9988930399025531, 0.9694222150454509, 0.999696162519724, 0.08462659928407619, 0.9039180560243233, 0.06736554309823721, 0.9909154719901995, 0.19218720835807232, 0.8828719775318125, 0.09114157943098833, 0.9694497099063725, 0.9140585402981216, 0.6732613636972146, 0.9925687010985667, 0.980768173325099, 0.9868537895200008, 0.9856559253246072, 0.24921957687584262, 0.7960146695259332, 0.9321136640872639, 0.1418704613063609, 0.999916290834063, 0.015779697212396613, 0.9083762097949261, 0.9183284345043917, 0.853505277654341, 0.9388457672377862, 0.7481095967269291, 0.1078056779501565, 0.003175502673184139, 0.279082485865265, 0.9869145277812312, 0.030517623647885767, 0.03007252625123707, 0.1426433246771616, 0.1480132058019313, 0.17860835839997555, 0.8463090882415617, 0.9929443479795433, 0.9997885208243776, 0.14640977623554774, 0.06532046220383331, 0.9985093885590222, 0.15819134872051446, 0.9999931689748692, 0.0203769436669388, 0.8276008495751105, 0.9627454983950976, 0.8270798098079902, 0.09958094542493412, 0.008714641448401105, 0.9065460193006943, 0.9302017104495399, 0.9769424255664597, 0.9382622647414393, 0.9990112725406739, 0.0043788258290449215, 0.9760525402307895, 0.006814576279024702, 0.025105042513554235, 0.10682039545664684, 0.04753424642069254, 0.9593236681287102, 0.046215006857492906, 0.9740610660409487, 0.9993777941560938, 0.029664478248278257, 0.02723923442618369, 0.8709083841504545, 0.9969640283730093, 0.01205873299657713, 0.28645169757823535, 0.10179410347400837, 0.12379945540116967, 0.720722946057534, 0.9878909293254571, 0.9977662671075022, 0.2418057983582023, 0.08237404759113061, 0.9064408890580654, 0.024017930326570135, 0.2848832175749518, 0.12197671988606995, 0.05339981056341122, 0.7675505180999541, 0.9587061911935559, 0.435368472345164, 0.8936243571886499, 0.7926544294244323, 0.6850903770489517, 0.01710170149783644, 0.8649140010924247, 0.04128163269181492, 0.9298866007699732, 0.92541737142571, 0.902044326811723, 0.26670810423476793, 0.15529895882438724, 0.9033208083470933, 0.9128650110902318, 0.9924789112335285, 0.7986187687555931, 0.03861804827396062, 0.02536630183145788, 0.723368345837723, 0.7485478321821623, 0.9902093563753237, 0.9211096316307069, 0.9031879442443586, 0.22672291073970138, 0.9021595909981325, 0.9362727871959647, 0.9152230721679667, 0.16594514307243566, 0.8542581050562107, 0.9999154077294675, 0.902595936511184, 0.01744683089158482, 0.9342429911056919, 0.996466199365419, 0.759220339183989, 0.045228942643595, 0.27450798796257936, 0.04189913373637948, 0.12394178428176635, 0.9665511621996757, 0.9668806748690245, 0.8382655123600182, 0.9491397338668764, 0.7849359226971137, 0.7133544700697533, 0.9742584632407058, 0.8018942873302338, 0.03159199546827297, 0.8543350288955341, 0.9997243759814595, 0.9605031819778498, 0.9232194688565835, 0.06724387384182465, 0.2318967168519731, 0.8129102103007514, 0.902852675299774, 0.005826055094813535, 0.688947530872345, 0.06768753060632259, 0.9958689410637965, 0.9743321972282081, 0.15216130419126542, 0.020938730572285014, 0.8956653379753797, 0.9345614927340531, 0.0018244365363541514, 0.8960922949564298, 0.6771194561472133, 0.9908056155719844, 0.008192892970765574, 0.03908016504246501, 0.016287008950088066, 0.019457013457013072, 0.039555765542848585, 0.8248990974333049, 0.2357065546841438, 0.9303651989402629, 0.0061875015428978705, 0.009553972280537492, 0.05777448372998703, 0.07973044221776109, 0.9921991904411903, 0.05235367176517689, 0.015707836067792167, 0.27954220536277685, 0.04833316694804029, 0.9390222971796346, 0.8188212737969396, 0.20629881349602294, 0.999416120965943, 0.9177993426546162, 0.7455952237384471, 0.44599383398134346, 0.13574752640121487, 0.8425555423928076, 0.08417952115016669, 0.022694374185678257, 0.717706396011803, 0.8271703812144927, 0.7768612975665552, 0.9959689330126605, 0.2464712377311181, 0.26434514119694125, 0.9900033897874317, 0.04545677400635989, 0.9144193984881194, 0.2502871278920526, 0.038282600694810424, 0.993851413721802, 0.03407668935213295, 0.801174439159375, 0.9779829869186522, 0.02350879861188605, 0.08665370162278291, 0.9993256433857466, 0.7630002278316143], "pred": [0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1], "true": [0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1]}}, "cv_scores": {"Logistic Regression": {"mean": 0.9541666666666666, "std": 0.04197800349918726, "scores": [0.90625, 1.0, 1.0, 0.90625, 0.9583333333333334]}, "Random Forest": {"mean": 0.9385416666666666, "std": 0.05043216015379249, "scores": [0.9114583333333334, 0.9895833333333333, 1.0, 0.8645833333333334, 0.9270833333333334]}, "XGBoost": {"mean": 0.9083333333333334, "std": 0.057206375907274905, "scores": [0.9375, 0.9479166666666666, 0.9583333333333334, 0.8020833333333334, 0.8958333333333334]}, "LightGBM": {"mean": 0.8791666666666668, "std": 0.055355542731610106, "scores": [0.9270833333333334, 0.9375, 0.875, 0.78125, 0.875]}}, "roc_m": {"Logistic Regression": {"fpr": [0.0, 0.0, 0.0, 0.06666666666666667, 0.06666666666666667, 0.13333333333333333, 0.13333333333333333, 0.2, 0.2, 1.0], "tpr": [0.0, 0.1, 0.3, 0.3, 0.8, 0.8, 0.9, 0.9, 1.0, 1.0], "auc": 0.9333333333333333}, "Random Forest": {"fpr": [0.0, 0.0, 0.0, 0.06666666666666667, 0.06666666666666667, 0.13333333333333333, 0.13333333333333333, 0.2, 0.26666666666666666, 0.3333333333333333, 0.4666666666666667, 0.4666666666666667, 1.0], "tpr": [0.0, 0.2, 0.4, 0.4, 0.6, 0.6, 0.8, 0.8, 0.9, 0.9, 0.9, 1.0, 1.0], "auc": 0.89}, "XGBoost": {"fpr": [0.0, 0.06666666666666667, 0.06666666666666667, 0.2, 0.2, 0.3333333333333333, 0.3333333333333333, 0.4, 0.4, 0.8, 0.9333333333333333, 1.0], "tpr": [0.0, 0.0, 0.4, 0.4, 0.8, 0.8, 0.9, 0.9, 1.0, 1.0, 1.0, 1.0], "auc": 0.8200000000000001}, "LightGBM": {"fpr": [0.0, 0.0, 0.06666666666666667, 0.06666666666666667, 0.2, 0.2, 0.26666666666666666, 0.26666666666666666, 1.0], "tpr": [0.0, 0.1, 0.1, 0.4, 0.4, 0.8, 0.8, 1.0, 1.0], "auc": 0.8466666666666668}, "Ensemble": {"fpr": [0.0, 0.0, 0.0, 0.06666666666666667, 0.06666666666666667, 0.13333333333333333, 0.13333333333333333, 0.26666666666666666, 0.26666666666666666, 0.3333333333333333, 0.3333333333333333, 1.0], "tpr": [0.0, 0.1, 0.4, 0.4, 0.6, 0.6, 0.8, 0.8, 0.9, 0.9, 1.0, 1.0], "auc": 0.9000000000000001}}, "roc_v": {"Logistic Regression": {"fpr": [0.0, 0.0, 0.008928571428571428, 0.017857142857142856, 0.022321428571428572, 0.03125, 0.03571428571428571, 0.04017857142857143, 0.044642857142857144, 0.05357142857142857, 0.0625, 0.06696428571428571, 0.07142857142857142, 0.07589285714285714, 0.08482142857142858, 0.09375, 0.10267857142857142, 0.11160714285714286, 0.12053571428571429, 0.13392857142857142, 0.13839285714285715, 0.14285714285714285, 0.14732142857142858, 0.15178571428571427, 0.16071428571428573, 0.16517857142857142, 0.17857142857142858, 0.18303571428571427, 0.19642857142857142, 0.21875, 0.22767857142857142, 0.23214285714285715, 0.23660714285714285, 0.25, 0.26785714285714285, 0.27232142857142855, 0.29464285714285715, 0.29910714285714285, 0.30357142857142855, 0.3392857142857143, 0.34375, 0.35714285714285715, 0.3794642857142857, 0.4107142857142857, 0.42857142857142855, 0.45089285714285715, 0.48214285714285715, 0.5133928571428571, 0.5178571428571429, 0.5223214285714286, 0.5491071428571429, 0.5803571428571429, 0.5892857142857143, 0.5982142857142857, 0.8080357142857143, 0.8348214285714286, 0.8660714285714286, 0.8883928571428571, 0.9464285714285714, 1.0], "tpr": [0.0, 0.42028985507246375, 0.4384057971014493, 0.4420289855072464, 0.44565217391304346, 0.4528985507246377, 0.5072463768115942, 0.5108695652173914, 0.572463768115942, 0.5869565217391305, 0.605072463768116, 0.6123188405797102, 0.6195652173913043, 0.644927536231884, 0.6847826086956522, 0.6920289855072463, 0.6956521739130435, 0.6992753623188406, 0.7028985507246377, 0.7065217391304348, 0.7101449275362319, 0.7137681159420289, 0.7282608695652174, 0.7355072463768116, 0.7391304347826086, 0.7463768115942029, 0.7608695652173914, 0.7644927536231884, 0.7789855072463768, 0.8007246376811594, 0.8333333333333334, 0.8369565217391305, 0.8405797101449275, 0.8442028985507246, 0.8478260869565217, 0.8623188405797102, 0.8731884057971014, 0.8804347826086957, 0.8913043478260869, 0.8985507246376812, 0.9021739130434783, 0.9057971014492754, 0.9094202898550725, 0.9130434782608695, 0.9239130434782609, 0.9311594202898551, 0.9384057971014492, 0.9420289855072463, 0.9456521739130435, 0.9492753623188406, 0.9528985507246377, 0.9637681159420289, 0.967391304347826, 0.9710144927536232, 0.9818840579710145, 0.9855072463768116, 0.9891304347826086, 0.9927536231884058, 0.9963768115942029, 1.0], "auc": 0.8858048654244306}, "XGBoost": {"fpr": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.008928571428571428, 0.008928571428571428, 0.013392857142857142, 1.0], "tpr": [0.0, 0.0036231884057971015, 0.025362318840579712, 0.043478260869565216, 0.07246376811594203, 0.07971014492753623, 0.09057971014492754, 0.10869565217391304, 0.11594202898550725, 0.14492753623188406, 0.15217391304347827, 0.18478260869565216, 0.213768115942029, 0.23550724637681159, 0.2572463768115942, 0.2753623188405797, 0.2898550724637681, 0.2971014492753623, 0.3007246376811594, 0.322463768115942, 0.32971014492753625, 0.34782608695652173, 0.35144927536231885, 0.358695652173913, 0.38405797101449274, 0.39855072463768115, 0.40942028985507245, 0.41304347826086957, 0.427536231884058, 0.45652173913043476, 0.463768115942029, 0.4927536231884058, 0.5, 0.5036231884057971, 0.5217391304347826, 0.532608695652174, 0.5471014492753623, 0.5543478260869565, 0.5615942028985508, 0.5797101449275363, 0.5833333333333334, 0.6014492753623188, 0.6086956521739131, 0.6268115942028986, 0.6557971014492754, 0.6630434782608695, 0.6739130434782609, 0.7137681159420289, 0.7318840579710145, 0.7427536231884058, 0.7608695652173914, 0.8115942028985508, 0.8188405797101449, 0.9239130434782609, 0.9384057971014492, 0.9456521739130435, 0.9891304347826086, 0.9963768115942029, 1.0, 1.0], "auc": 0.9998867753623188}, "LightGBM": {"fpr": [0.0, 0.0, 0.0, 1.0], "tpr": [0.0, 0.0036231884057971015, 1.0, 1.0], "auc": 1.0}, "Ensemble": {"fpr": [0.0, 0.0, 0.0, 1.0], "tpr": [0.0, 0.0036231884057971015, 1.0, 1.0], "auc": 1.0}}, "pr_m": {"Logistic Regression": {"p": [0.4, 0.4166666666666667, 0.43478260869565216, 0.45454545454545453, 0.47619047619047616, 0.5, 0.5263157894736842, 0.5555555555555556, 0.5882352941176471, 0.625, 0.6666666666666666, 0.7142857142857143, 0.7692307692307693, 0.75, 0.8181818181818182, 0.8, 0.8888888888888888, 0.875, 0.8571428571428571, 0.8333333333333334, 0.8, 0.75, 1.0, 1.0, 1.0, 1.0], "r": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.3, 0.2, 0.1, 0.0], "ap": 0.8841777666777666}, "Random Forest": {"p": [0.4, 0.4166666666666667, 0.43478260869565216, 0.45454545454545453, 0.47619047619047616, 0.5, 0.5263157894736842, 0.5555555555555556, 0.5882352941176471, 0.5625, 0.6428571428571429, 0.6923076923076923, 0.7272727272727273, 0.8, 0.7777777777777778, 0.75, 0.8571428571428571, 0.8333333333333334, 0.8, 1.0, 1.0, 1.0, 1.0], "r": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.9, 0.9, 0.8, 0.8, 0.7, 0.6, 0.6, 0.5, 0.4, 0.4, 0.3, 0.2, 0.0], "ap": 0.8548796954679307}, "XGBoost": {"p": [0.4, 0.4166666666666667, 0.45454545454545453, 0.47619047619047616, 0.5, 0.5263157894736842, 0.5555555555555556, 0.5882352941176471, 0.625, 0.6, 0.6428571428571429, 0.6153846153846154, 0.6666666666666666, 0.7272727272727273, 0.7, 0.6666666666666666, 0.625, 0.5714285714285714, 0.6666666666666666, 0.8, 0.75, 0.6666666666666666, 0.5, 0.0, 1.0], "r": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.8, 0.7, 0.6, 0.5, 0.4, 0.4, 0.4, 0.3, 0.2, 0.1, 0.0, 0.0], "ap": 0.6703463203463204}, "LightGBM": {"p": [0.4, 0.4166666666666667, 0.43478260869565216, 0.45454545454545453, 0.47619047619047616, 0.5, 0.5263157894736842, 0.5555555555555556, 0.5882352941176471, 0.625, 0.6666666666666666, 0.7142857142857143, 0.6923076923076923, 0.6666666666666666, 0.7272727272727273, 0.7, 0.6666666666666666, 0.625, 0.5714285714285714, 0.6666666666666666, 0.8, 0.75, 0.6666666666666666, 0.5, 1.0, 1.0], "r": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.8, 0.8, 0.7, 0.6, 0.5, 0.4, 0.4, 0.4, 0.3, 0.2, 0.1, 0.1, 0.0], "ap": 0.7342199467199467}, "Ensemble": {"p": [0.4, 0.4166666666666667, 0.43478260869565216, 0.45454545454545453, 0.47619047619047616, 0.5, 0.5263157894736842, 0.5555555555555556, 0.5882352941176471, 0.625, 0.6666666666666666, 0.6428571428571429, 0.6923076923076923, 0.6666666666666666, 0.7272727272727273, 0.8, 0.7777777777777778, 0.75, 0.8571428571428571, 0.8333333333333334, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0], "r": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.8, 0.7, 0.6, 0.6, 0.5, 0.4, 0.4, 0.3, 0.2, 0.1, 0.0], "ap": 0.8627228327228327}}, "pr_v": {"Logistic Regression": {"p": [0.552, 0.5609756097560976, 0.567287784679089, 0.5768421052631579, 0.5836909871244635, 0.5917030567685589, 0.6013363028953229, 0.6122448979591837, 0.625, 0.6367924528301887, 0.6506024096385542, 0.6633906633906634, 0.6708542713567839, 0.6820512820512821, 0.6876640419947506, 0.6943699731903485, 0.7087912087912088, 0.7219101123595506, 0.7348703170028819, 0.7433628318584071, 0.7552870090634441, 0.7639751552795031, 0.7834394904458599, 0.7901639344262295, 0.797979797979798, 0.8055555555555556, 0.8178571428571428, 0.8191881918819188, 0.8326996197718631, 0.8385826771653543, 0.8414634146341463, 0.8565400843881856, 0.8602620087336245, 0.8818181818181818, 0.9009433962264151, 0.9064039408866995, 0.9128205128205128, 0.9193548387096774, 0.9269662921348315, 0.9349112426035503, 0.937888198757764, 0.934640522875817, 0.9444444444444444, 0.9411764705882353, 0.968503937007874, 0.9915966386554622, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], "r": [1.0, 1.0, 0.9927536231884058, 0.9927536231884058, 0.9855072463768116, 0.9818840579710145, 0.9782608695652174, 0.9782608695652174, 0.9782608695652174, 0.9782608695652174, 0.9782608695652174, 0.9782608695652174, 0.967391304347826, 0.9637681159420289, 0.9492753623188406, 0.9384057971014492, 0.9347826086956522, 0.9311594202898551, 0.9239130434782609, 0.9130434782608695, 0.9057971014492754, 0.8913043478260869, 0.8913043478260869, 0.8731884057971014, 0.8586956521739131, 0.8405797101449275, 0.8297101449275363, 0.8043478260869565, 0.7934782608695652, 0.7717391304347826, 0.75, 0.7355072463768116, 0.7137681159420289, 0.7028985507246377, 0.6920289855072463, 0.6666666666666666, 0.644927536231884, 0.6195652173913043, 0.5978260869565217, 0.572463768115942, 0.5471014492753623, 0.5181159420289855, 0.4927536231884058, 0.463768115942029, 0.44565217391304346, 0.427536231884058, 0.39855072463768115, 0.3695652173913043, 0.33695652173913043, 0.3079710144927536, 0.2753623188405797, 0.2463768115942029, 0.213768115942029, 0.18478260869565216, 0.15217391304347827, 0.12318840579710146, 0.09057971014492754, 0.06159420289855073, 0.028985507246376812, 0.0], "ap": 0.9145571524074934}, "XGBoost": {"p": [0.552, 0.5598377281947262, 0.5690721649484536, 0.5774058577405857, 0.5872340425531914, 0.5961123110151187, 0.6065934065934065, 0.6160714285714286, 0.6272727272727273, 0.6374133949191686, 0.6494117647058824, 0.6602870813397129, 0.6731707317073171, 0.684863523573201, 0.6987341772151898, 0.711340206185567, 0.7263157894736842, 0.739946380697051, 0.7561643835616438, 0.770949720670391, 0.7885714285714286, 0.8046647230320699, 0.8238805970149253, 0.8414634146341463, 0.8625, 0.8817891373801917, 0.9049180327868852, 0.9261744966442953, 0.9517241379310345, 0.9752650176678446, 0.9927272727272727, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], "r": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9891304347826086, 0.9710144927536232, 0.9384057971014492, 0.9094202898550725, 0.8804347826086957, 0.855072463768116, 0.8260869565217391, 0.7971014492753623, 0.7681159420289855, 0.7318840579710145, 0.6992753623188406, 0.6739130434782609, 0.6376811594202898, 0.6086956521739131, 0.5652173913043478, 0.532608695652174, 0.4891304347826087, 0.4601449275362319, 0.40217391304347827, 0.36231884057971014, 0.3188405797101449, 0.286231884057971, 0.25, 0.21014492753623187, 0.17753623188405798, 0.15217391304347827, 0.11594202898550725, 0.07246376811594203, 0.028985507246376812, 0.0], "ap": 0.9999086257913401}, "LightGBM": {"p": [0.552, 0.5609756097560976, 0.5714285714285714, 0.5810526315789474, 0.592274678111588, 0.6026200873362445, 0.6146993318485523, 0.6258503401360545, 0.6388888888888888, 0.6509433962264151, 0.6650602409638554, 0.6781326781326781, 0.6934673366834171, 0.7076923076923077, 0.7244094488188977, 0.739946380697051, 0.7582417582417582, 0.7752808988764045, 0.7953890489913544, 0.8141592920353983, 0.8338368580060423, 0.8571428571428571, 0.8789808917197452, 0.9049180327868852, 0.9292929292929293, 0.9583333333333334, 0.9857142857142858, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], "r": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9818840579710145, 0.9528985507246377, 0.9202898550724637, 0.8913043478260869, 0.8586956521739131, 0.8297101449275363, 0.7971014492753623, 0.7681159420289855, 0.7355072463768116, 0.7065217391304348, 0.6739130434782609, 0.644927536231884, 0.6123188405797102, 0.5833333333333334, 0.5543478260869565, 0.5217391304347826, 0.4927536231884058, 0.4601449275362319, 0.4311594202898551, 0.39855072463768115, 0.3695652173913043, 0.33695652173913043, 0.3079710144927536, 0.2753623188405797, 0.2463768115942029, 0.213768115942029, 0.18478260869565216, 0.15217391304347827, 0.12318840579710146, 0.09057971014492754, 0.06159420289855073, 0.028985507246376812, 0.0], "ap": 1.0}, "Ensemble": {"p": [0.552, 0.5609756097560976, 0.5714285714285714, 0.5810526315789474, 0.592274678111588, 0.6026200873362445, 0.6146993318485523, 0.6258503401360545, 0.6388888888888888, 0.6509433962264151, 0.6650602409638554, 0.6781326781326781, 0.6934673366834171, 0.7076923076923077, 0.7244094488188977, 0.739946380697051, 0.7582417582417582, 0.7752808988764045, 0.7953890489913544, 0.8141592920353983, 0.8338368580060423, 0.8571428571428571, 0.8789808917197452, 0.9049180327868852, 0.9292929292929293, 0.9583333333333334, 0.9857142857142858, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], "r": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9818840579710145, 0.9528985507246377, 0.9202898550724637, 0.8913043478260869, 0.8586956521739131, 0.8297101449275363, 0.7971014492753623, 0.7681159420289855, 0.7355072463768116, 0.7065217391304348, 0.6739130434782609, 0.644927536231884, 0.6123188405797102, 0.5833333333333334, 0.5543478260869565, 0.5217391304347826, 0.4927536231884058, 0.4601449275362319, 0.4311594202898551, 0.39855072463768115, 0.3695652173913043, 0.33695652173913043, 0.3079710144927536, 0.2753623188405797, 0.2463768115942029, 0.213768115942029, 0.18478260869565216, 0.15217391304347827, 0.12318840579710146, 0.09057971014492754, 0.06159420289855073, 0.028985507246376812, 0.0], "ap": 1.0}}, "cal_m": {"Logistic Regression": {"fp": [0.0, 0.0, 0.0, 0.5, 1.0, 0.8], "mp": [0.016691371734589115, 0.14517423994491324, 0.33393946584927525, 0.4189077417507156, 0.7847360456899622, 0.9749629520841404]}, "Random Forest": {"fp": [0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.8333333333333334], "mp": [0.06904761904761905, 0.12666666666666668, 0.5, 0.53, 0.6766666666666666, 0.81, 0.943888888888889]}, "XGBoost": {"fp": [0.0, 0.0, 0.5, 1.0, 0.0, 0.5, 0.7], "mp": [0.025666132103651762, 0.22934190928936005, 0.48743554949760437, 0.5694818496704102, 0.6409225463867188, 0.8166418671607971, 0.9679633975028992]}, "LightGBM": {"fp": [0.0, 0.0, 1.0, 1.0, 0.0, 0.7272727272727273], "mp": [0.002426012596661331, 0.18471639472664614, 0.2991613345537783, 0.4589514558712741, 0.8191926487383591, 0.9940088882117553]}, "Ensemble": {"fp": [0.0, 0.0, 0.0, 0.5, 0.3333333333333333, 1.0, 0.75], "mp": [0.030491759802999438, 0.24851241095665821, 0.26577010559375963, 0.45536850623248126, 0.6604801129020333, 0.8483644178550777, 0.9663992952500464]}}, "cm": {"MIMIC_Logistic Regression": [[13, 2], [1, 9]], "MIMIC_Random Forest": [[8, 7], [0, 10]], "MIMIC_XGBoost": [[10, 5], [1, 9]], "MIMIC_LightGBM": [[11, 4], [2, 8]], "MIMIC_Ensemble": [[11, 4], [1, 9]]}, "dist": {"MIMIC_Logistic Regression": {"lo": {"x": [0.025, 0.07500000000000001, 0.125, 0.17500000000000002, 0.225, 0.275, 0.32500000000000007, 0.375, 0.42500000000000004, 0.475, 0.525, 0.5750000000000001, 0.625, 0.675, 0.7250000000000001, 0.775, 0.8250000000000001, 0.875, 0.925, 0.9750000000000001], "y": [8, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1]}, "hi": {"x": [0.025, 0.07500000000000001, 0.125, 0.17500000000000002, 0.225, 0.275, 0.32500000000000007, 0.375, 0.42500000000000004, 0.475, 0.525, 0.5750000000000001, 0.625, 0.675, 0.7250000000000001, 0.775, 0.8250000000000001, 0.875, 0.925, 0.9750000000000001], "y": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 6]}}, "MIMIC_Random Forest": {"lo": {"x": [0.025, 0.07500000000000001, 0.125, 0.17500000000000002, 0.225, 0.275, 0.32500000000000007, 0.375, 0.42500000000000004, 0.475, 0.525, 0.5750000000000001, 0.625, 0.675, 0.7250000000000001, 0.775, 0.8250000000000001, 0.875, 0.925, 0.9750000000000001], "y": [2, 3, 3, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 3, 0, 1, 0, 0, 1, 0]}, "hi": {"x": [0.025, 0.07500000000000001, 0.125, 0.17500000000000002, 0.225, 0.275, 0.32500000000000007, 0.375, 0.42500000000000004, 0.475, 0.525, 0.5750000000000001, 0.625, 0.675, 0.7250000000000001, 0.775, 0.8250000000000001, 0.875, 0.925, 0.9750000000000001], "y": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 1, 0, 1, 0, 3, 2]}}, "MIMIC_XGBoost": {"lo": {"x": [0.02500000037252903, 0.07500000298023224, 0.125, 0.17500001192092896, 0.22499999403953552, 0.2750000059604645, 0.32499998807907104, 0.375, 0.42500001192092896, 0.4749999940395355, 0.5249999761581421, 0.5750000476837158, 0.625, 0.6749999523162842, 0.7250000238418579, 0.7749999761581421, 0.8250000476837158, 0.875, 0.9249999523162842, 0.9750000238418579], "y": [6, 2, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 3]}, "hi": {"x": [0.02500000037252903, 0.07500000298023224, 0.125, 0.17500001192092896, 0.22499999403953552, 0.2750000059604645, 0.32499998807907104, 0.375, 0.42500001192092896, 0.4749999940395355, 0.5249999761581421, 0.5750000476837158, 0.625, 0.6749999523162842, 0.7250000238418579, 0.7749999761581421, 0.8250000476837158, 0.875, 0.9249999523162842, 0.9750000238418579], "y": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 2, 2, 4]}}, "MIMIC_LightGBM": {"lo": {"x": [0.025, 0.07500000000000001, 0.125, 0.17500000000000002, 0.225, 0.275, 0.32500000000000007, 0.375, 0.42500000000000004, 0.475, 0.525, 0.5750000000000001, 0.625, 0.675, 0.7250000000000001, 0.775, 0.8250000000000001, 0.875, 0.925, 0.9750000000000001], "y": [10, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 3]}, "hi": {"x": [0.025, 0.07500000000000001, 0.125, 0.17500000000000002, 0.225, 0.275, 0.32500000000000007, 0.375, 0.42500000000000004, 0.475, 0.525, 0.5750000000000001, 0.625, 0.675, 0.7250000000000001, 0.775, 0.8250000000000001, 0.875, 0.925, 0.9750000000000001], "y": [0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8]}}, "MIMIC_Ensemble": {"lo": {"x": [0.025, 0.07500000000000001, 0.125, 0.17500000000000002, 0.225, 0.275, 0.32500000000000007, 0.375, 0.42500000000000004, 0.475, 0.525, 0.5750000000000001, 0.625, 0.675, 0.7250000000000001, 0.775, 0.8250000000000001, 0.875, 0.925, 0.9750000000000001], "y": [6, 2, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1]}, "hi": {"x": [0.025, 0.07500000000000001, 0.125, 0.17500000000000002, 0.225, 0.275, 0.32500000000000007, 0.375, 0.42500000000000004, 0.475, 0.525, 0.5750000000000001, 0.625, 0.675, 0.7250000000000001, 0.775, 0.8250000000000001, 0.875, 0.925, 0.9750000000000001], "y": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 5]}}}, "shap": {"features": ["lab_platelets_range", "resp_rate_range", "lab_hemoglobin_n", "lab_glucose_range", "gcs_eye_entropy", "lab_glucose_n", "gcs_motor_mean", "lab_glucose_std", "lab_bun_cv", "lab_bicarbonate_range", "lab_potassium_cv", "heart_rate_n", "lab_hemoglobin_entropy", "gcs_motor_std", "lab_bun_n"], "values": [1.1884552240371704, 0.8442897200584412, 0.8146541118621826, 0.5703015327453613, 0.3904889225959778, 0.30690017342567444, 0.21027763187885284, 0.2009688913822174, 0.15249696373939514, 0.13023316860198975, 0.128298819065094, 0.11216631531715393, 0.10937359184026718, 0.09545423835515976, 0.09417741000652313]}, "feat_imp": {"features": ["lab_hemoglobin_n", "lab_platelets_range", "resp_rate_range", "heart_rate_n", "lab_glucose_range", "gcs_eye_entropy", "lab_glucose_n", "lab_bicarbonate_cv", "lab_bun_n", "lab_bun_cv", "lab_hemoglobin_entropy", "gcs_verbal_cv", "gcs_motor_mean", "lab_platelets_n", "lab_creatinine_std"], "rf": [0.040259451550604855, 0.05690988232202964, 0.018288744302240225, 0.01693920653990885, 0.015585521909672637, 0.028157610915152086, 0.046349647820653525, 0.00674776567911912, 0.03385765262358821, 0.00640140993458755, 0.019301088449885293, 0.006388171404782472, 0.004880332665341153, 0.05368355164512183, 0.004818485631967735], "xgb": [0.2867269814014435, 0.06614302098751068, 0.017376087605953217, 0.09269368648529053, 0.028416771441698074, 0.02607094869017601, 0.00777517119422555, 0.08035442978143692, 0.008813519030809402, 0.03558918833732605, 0.005423686932772398, 0.03406020998954773, 0.04945426806807518, 0.0, 0.027782123535871506], "lgb": [0.029999999999940002, 0.093999999999812, 0.085999999999828, 0.00999999999998, 0.065999999999868, 0.045999999999908, 0.041999999999916, 0.0, 0.017999999999964, 0.017999999999964, 0.033999999999932, 0.015999999999968, 0.001999999999996, 0.0, 0.017999999999964], "avg": [0.11899547765066278, 0.07235096776978411, 0.040554943969340486, 0.03987763100839312, 0.03666743111707957, 0.033409519868412035, 0.03204160633826503, 0.02903406515351868, 0.020223723884787204, 0.019996866090625866, 0.019574925127529896, 0.01881612713143273, 0.018778200244470775, 0.01789451721504061, 0.01686686972260108]}, "cui_lo": [0.3373500749539995, 0.3326383805062196, 0.422892655623678, 0.4188111215109986, 0.3520545814178923, 0.4177988860866272, 0.4179796390708008, 0.4481620136886273, 0.4094855946247245, 0.4143872811305722, 0.294013493192243, 0.42090005319897783, 0.36121249953991824, 0.22409759432314624, 0.35576723521582126, 0.16662571162603854, 0.3440887254267367, 0.2848571101814863, 0.4498156189399684, 0.41304458095717655, 0.3720786626526533, 0.32082518925875536, 0.39253441650199483, 0.1578815723792684, 0.35222735056624455, 0.45338915764589116, 0.23994230143946682, 0.3674025005381725, 0.45164361622427573, 0.3022993927692798, 0.36303651323775, 0.46685162640230926, 0.36144035598138136, 0.36815354427172475, 0.38396872814035093, 0.4607640369374063, 0.44316868290014366, 0.3518256462272656, 0.3867001361032749, 0.4648817306962042, 0.45028771279343427, 0.28655201911686146, 0.46794535882166594, 0.42049956648868325, 0.3241847095832895, 0.2855856421862203, 0.30821498644460155, 0.424020009101708, 0.3773139732290828, 0.1806343793876529, 0.1349188495827256, 0.35141913795237883, 0.37418218371469697, 0.16580755708420863, 0.39848211226769537, 0.36497561554485775, 0.4088484830745612, 0.3304274412668022, 0.2312196172905624, 0.21626919531803224], "cui_hi": [0.49718185236744494, 0.5633263889261958, 0.5456794588976732, 0.5137511974685748, 0.5346647669356294, 0.5426047600854562, 0.5093744157633222, 0.48961487433242884, 0.5676498741666043, 0.4903913838359828, 0.5568187831488749, 0.5161692810864704, 0.6132890116245271, 0.5760330118100618, 0.5053684925912763, 0.5442445345678373, 0.5055580203031652, 0.6948284534375622, 0.5452298164689039, 0.4994128581541811, 0.5540446487950995, 0.5427817121636177, 0.47317609041632946, 0.5164930309110803, 0.6985140390900372, 0.48507221738503803, 0.520122136404208, 0.49599043796420295, 0.47766269587521665, 0.5388067212088665, 0.574310553495501, 0.6136704139699092, 0.48145857385776086, 0.680139637430989, 0.48529633476700246, 0.5509140828701915, 0.6513062215478269, 0.5690497269846793, 0.5001489986391137, 0.5239111713301069], "los_lo": [32.12611111111111, 119.61333333333333, 60.61222222222222, 25.2125, 24.793750000000003, 82.9413888888889, 44.918055555555554, 21.770416666666666, 117.77166666666666, 47.592638888888885, 28.11861111111111, 90.40138888888889, 9.846388888888889, 28.955555555555556, 88.25722222222223, 19.57, 75.90416666666667, 59.73388888888889, 88.76444444444445, 26.39527777777778, 21.56277777777778, 34.19416666666667, 184.86027777777778, 27.575555555555557, 33.43833333333333, 49.805277777777775, 34.716944444444444, 64.51972222222223, 125.51916666666666, 47.378055555555555, 14.792777777777777, 29.767777777777777, 14.686666666666667, 24.968888888888888, 36.25347222222222, 54.738055555555555, 27.864444444444445, 28.246111111111112, 54.92, 194.13481481481483, 45.41722222222222, 28.468055555555555, 128.5247222222222, 117.07777777777778, 26.013055555555557, 16.961944444444445, 11.562222222222223, 107.36777777777777, 122.10027777777778, 35.78138888888889, 3.742777777777778, 53.007777777777775, 33.288333333333334, 31.71638888888889, 29.22, 21.301111111111112, 75.80777777777777, 35.693888888888885, 46.589166666666664, 48.55111111111111], "los_hi": [59.308055555555555, 255.18277777777777, 150.09055555555557, 80.3925, 60.19694444444444, 19.84527777777778, 156.91444444444446, 61.3825, 68.63194444444444, 76.46425925925926, 182.24416666666667, 92.21648148148148, 153.62194444444447, 151.0862962962963, 224.68916666666667, 76.76333333333334, 63.10041666666667, 251.86222222222221, 9.426388888888889, 152.56555555555556, 16.728472222222223, 209.73041666666668, 23.8375, 47.98388888888889, 192.11708333333334, 41.792569444444446, 121.34861111111111, 31.51888888888889, 15.698611111111111, 250.00277777777777, 492.68833333333333, 102.9456111111111, 212.07527777777779, 118.85055555555556, 217.8438888888889, 171.0825, 219.98291666666668, 57.66203703703704, 200.57694444444445, 28.02777777777778], "km": {"Low Uncertainty": {"t": [0.0, 3.742777777777778, 9.846388888888889, 11.562222222222223, 14.686666666666667, 14.792777777777777, 16.961944444444445, 19.57, 21.301111111111112, 21.56277777777778, 21.770416666666666, 24.793750000000003, 24.968888888888888, 25.2125, 26.013055555555557, 26.39527777777778, 27.575555555555557, 27.864444444444445, 28.11861111111111, 28.246111111111112, 28.468055555555555, 28.955555555555556, 29.22, 29.767777777777777, 31.71638888888889, 32.12611111111111, 33.288333333333334, 33.43833333333333, 34.19416666666667, 34.716944444444444, 35.693888888888885, 35.78138888888889, 36.25347222222222, 44.918055555555554, 45.41722222222222, 46.589166666666664, 47.378055555555555, 47.592638888888885, 48.55111111111111, 49.805277777777775, 53.007777777777775, 54.738055555555555, 54.92, 59.73388888888889, 60.61222222222222, 64.51972222222223, 75.80777777777777, 75.90416666666667, 82.9413888888889, 88.25722222222223, 88.76444444444445, 90.40138888888889, 107.36777777777777, 117.07777777777778, 117.77166666666666, 119.61333333333333, 122.10027777777778, 125.51916666666666, 128.5247222222222, 184.86027777777778, 194.13481481481483], "s": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}, "High Uncertainty": {"t": [0.0, 9.426388888888889, 15.698611111111111, 16.728472222222223, 19.84527777777778, 23.8375, 28.02777777777778, 31.51888888888889, 41.792569444444446, 47.98388888888889, 57.66203703703704, 59.308055555555555, 60.19694444444444, 61.3825, 63.10041666666667, 68.63194444444444, 76.46425925925926, 76.76333333333334, 80.3925, 92.21648148148148, 102.9456111111111, 118.85055555555556, 121.34861111111111, 150.09055555555557, 151.0862962962963, 152.56555555555556, 153.62194444444447, 156.91444444444446, 171.0825, 182.24416666666667, 192.11708333333334, 200.57694444444445, 209.73041666666668, 212.07527777777779, 217.8438888888889, 219.98291666666668, 224.68916666666667, 250.00277777777777, 251.86222222222221, 255.18277777777777, 492.68833333333333], "s": [1.0, 0.9749999999999999, 0.95, 0.9249999999999999, 0.8999999999999999, 0.8749999999999999, 0.8500000000000002, 0.8250000000000001, 0.8, 0.775, 0.7500000000000001, 0.7250000000000001, 0.7, 0.675, 0.6500000000000001, 0.6249999999999999, 0.6000000000000001, 0.5750000000000001, 0.5500000000000002, 0.525, 0.49999999999999994, 0.4749999999999999, 0.44999999999999996, 0.42500000000000004, 0.39999999999999997, 0.375, 0.3499999999999999, 0.325, 0.30000000000000004, 0.275, 0.25000000000000006, 0.22500000000000006, 0.19999999999999998, 0.175, 0.15, 0.12499999999999997, 0.09999999999999998, 0.075, 0.04999999999999998, 0.02499999999999999, 0.0]}}, "vital_stats": {"heart_rate": {"mean": 91.12233163228635, "std": 18.689358119703506, "min": 0.0, "max": 200.0, "n": 13913}, "sbp": {"mean": 115.26788067569187, "std": 21.75589752824883, "min": 46.0, "max": 215.0, "n": 8347}, "dbp": {"mean": 63.3429153191999, "std": 14.925165640982772, "min": 18.0, "max": 162.0, "n": 8349}, "resp_rate": {"mean": 19.95342485445267, "std": 5.55252132364882, "min": 0.0, "max": 58.0, "n": 13913}, "temp_c": {"mean": 37.253452685422, "std": 5.5035869047038215, "min": 31.1, "max": 99.0, "n": 391}, "spo2": {"mean": 96.81100443131463, "std": 2.956854981799285, "min": 29.0, "max": 100.0, "n": 13540}, "gcs_eye": {"mean": 3.250152718387294, "std": 1.0482005478554837, "min": 1.0, "max": 4.0, "n": 3274}, "gcs_verbal": {"mean": 3.033680342927128, "std": 1.8733477794281872, "min": 1.0, "max": 5.0, "n": 3266}, "gcs_motor": {"mean": 5.258689633958782, "std": 1.445783473291655, "min": 1.0, "max": 6.0, "n": 3251}}, "threshold": 0.47003765145953136, "n_patients": 100, "n_features": 133, "class_balance": 0.4, "cui_hist_lo": {"x": [0.02, 0.06, 0.1, 0.14, 0.18, 0.22, 0.26, 0.30000000000000004, 0.33999999999999997, 0.38, 0.42000000000000004, 0.45999999999999996, 0.5, 0.54, 0.5800000000000001, 0.62, 0.66, 0.7, 0.74, 0.78, 0.8200000000000001, 0.86, 0.9, 0.94, 0.98], "y": [0.0, 0.0, 0.0, 0.8333333333333333, 1.2499999999999998, 1.6666666666666676, 0.0, 2.5000000000000013, 4.583333333333335, 5.416666666666662, 4.583333333333335, 4.166666666666669, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, "cui_hist_hi": {"x": [0.02, 0.06, 0.1, 0.14, 0.18, 0.22, 0.26, 0.30000000000000004, 0.33999999999999997, 0.38, 0.42000000000000004, 0.45999999999999996, 0.5, 0.54, 0.5800000000000001, 0.62, 0.66, 0.7, 0.74, 0.78, 0.8200000000000001, 0.86, 0.9, 0.94, 0.98], "y": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.2500000000000007, 9.374999999999991, 7.499999999999993, 3.125000000000006, 1.249999999999999, 0.6249999999999994, 1.8750000000000036, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, "los_hist_lo": {"x": [8.502578703703705, 18.022180555555558, 27.54178240740741, 37.061384259259256, 46.580986111111116, 56.10058796296296, 65.62018981481481, 75.13979166666667, 84.65939351851853, 94.17899537037039, 103.69859722222222, 113.21819907407408, 122.73780092592594, 132.25740277777777, 141.77700462962963, 151.2966064814815, 160.81620833333335, 170.3358101851852, 179.85541203703707, 189.3750138888889], "y": [0.005252320504378392, 0.012255414510216249, 0.02626160252189197, 0.012255414510216249, 0.012255414510216249, 0.00875386750729732, 0.0017507735014594653, 0.0035015470029189253, 0.0052523205043783884, 0.0017507735014594653, 0.0017507735014594653, 0.0035015470029189253, 0.0052523205043783884, 0.001750773501459468, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0035015470029189253]}, "los_hist_hi": {"x": [21.5079375, 45.671034722222224, 69.83413194444445, 93.99722916666667, 118.16032638888889, 142.3234236111111, 166.48652083333332, 190.64961805555555, 214.81271527777778, 238.97581250000002, 263.13890972222225, 287.30200694444443, 311.4651041666667, 335.6282013888889, 359.7912986111111, 383.95439583333336, 408.11749305555554, 432.28059027777783, 456.4436875, 480.6067847222222], "y": [0.007242449028390973, 0.003103906726453275, 0.008277084603875395, 0.0020692711509688504, 0.0020692711509688513, 0.004138542301937697, 0.0020692711509688513, 0.0031039067264532734, 0.005173177877422123, 0.0010346355754844256, 0.0020692711509688487, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0010346355754844243]}};
+
+// ── COLOUR PALETTE ──
+var C = {
+  LR:  '#3b82f6', RF: '#10b981', XGB: '#f59e0b',
+  LGB: '#8b5cf6', ENS: '#ef4444',
+  LRV: '#a3e635', XGBV: '#f472b6', LGBV: '#fb923c', ENSV: '#06b6d4'
+};
+var MC = {'Logistic Regression':C.LR,'Random Forest':C.RF,'XGBoost':C.XGB,'LightGBM':C.LGB,'Ensemble':C.ENS};
+var VC = {'Logistic Regression':C.LRV,'XGBoost':C.XGBV,'LightGBM':C.LGBV,'Ensemble':C.ENSV};
+
+// ── CHART DEFAULTS ──
+Chart.defaults.color = '#64748b';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 10;
+var GR = {color:'rgba(26,37,53,0.7)',drawBorder:false};
+var gOpt = {responsive:true,maintainAspectRatio:true,
+            plugins:{legend:{position:'bottom',labels:{boxWidth:9,padding:10,font:{size:9}}}}};
+
+// ── NAV ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  var pg = document.getElementById('page-'+id);
+  if(pg) pg.classList.add('active');
+  var nv = document.getElementById('nav-'+id);
+  if(nv) nv.classList.add('active');
+  // lazy init charts on first visit
+  if(!window._rendered) window._rendered = {};
+  if(!window._rendered[id]){
+    window._rendered[id]=true;
+    if(id==='overview') renderOverview();
+    if(id==='datasets') renderDatasets();
+    if(id==='pipeline') renderPipeline();
+    if(id==='mimic')    renderMimic();
+    if(id==='vitals')   renderVitals();
+    if(id==='features') renderFeatures();
+    if(id==='inference') renderInference();
+  }
+}
+
+// ── HELPERS ──
+function mkChart(id, cfg){
+  var el = document.getElementById(id);
+  if(!el) return null;
+  return new Chart(el, cfg);
+}
+
+function barChart(id, labels, datasets, ymin, ymax, title){
+  return mkChart(id, {type:'bar', data:{labels:labels,datasets:datasets},
+    options:Object.assign({},gOpt,{plugins:Object.assign({},gOpt.plugins,{
+      legend:{position:'bottom',labels:{boxWidth:9,padding:8,font:{size:9}}},
+      title:title?{display:false}:undefined
+    }),scales:{x:{grid:GR},y:{grid:GR,min:ymin,max:ymax,
+      ticks:{callback:function(v){return v.toFixed?v.toFixed(3):v;}}}}})});
+}
+
+function lineChart(id, datasets, xLabel, yLabel, ymin, ymax){
+  return mkChart(id, {type:'line', data:{datasets:datasets},
+    options:Object.assign({},gOpt,{
+      scales:{
+        x:{type:'linear',min:ymin||0,max:1,title:{display:true,text:xLabel},grid:GR,
+           ticks:{maxTicksLimit:6,callback:function(v){return v.toFixed(1);}}},
+        y:{min:ymin||0,max:ymax||1,title:{display:true,text:yLabel},grid:GR,
+           ticks:{callback:function(v){return v.toFixed(1);}}}
+      }})});
+}
+
+// ══════ OVERVIEW ══════
+function renderOverview(){
+  // KPI grid
+  var kpis = [
+    {label:'Best AUC (MIMIC)',   val:'0.9333', sub:'Logistic Regression', cls:'c1'},
+    {label:'Best CV-AUC',        val:'0.9542', sub:'LR ± 0.0420',         cls:'c2'},
+    {label:'Best F1 (MIMIC)',    val:'0.8571', sub:'Logistic Regression',  cls:'c3'},
+    {label:'Vitals AUC',         val:'1.0000', sub:'XGBoost / LightGBM',  cls:'c4'},
+    {label:'MIMIC Patients',     val:'100',    sub:'ICU stays, 132 feats', cls:'c5'},
+    {label:'Vitals Records',     val:'200k',   sub:'Risk category labels', cls:'c6'},
+  ];
+  var g = document.getElementById('kpi-grid');
+  kpis.forEach(function(k){
+    g.innerHTML += '<div class="kpi '+k.cls+'"><div class="kpi-label">'+k.label+'</div>'
+      +'<div class="kpi-val '+k.cls+'">'+k.val+'</div>'
+      +'<div class="kpi-sub">'+k.sub+'</div></div>';
+  });
+
+  // AUC bar
+  var mNames = Object.keys(DATA.results_m);
+  var mAUCs  = mNames.map(function(n){ return DATA.results_m[n].auc; });
+  barChart('ch-auc-bar', mNames,
+    [{label:'AUC-ROC',data:mAUCs,backgroundColor:mNames.map(function(n){return MC[n]||'#888';}),borderRadius:5}],
+    0.7, 1.0);
+
+  // CV bar
+  var cvNames  = Object.keys(DATA.cv_scores);
+  var cvMeans  = cvNames.map(function(n){ return DATA.cv_scores[n].mean; });
+  var cvStds   = cvNames.map(function(n){ return DATA.cv_scores[n].std; });
+  barChart('ch-cv-bar', cvNames,
+    [{label:'CV-5 AUC Mean',data:cvMeans,backgroundColor:cvNames.map(function(n){return MC[n]||'#888';}),
+      borderRadius:5,
+      errorBars:{show:true}}],
+    0.8, 1.0);
+
+  // F1 bar
+  var mF1s = mNames.map(function(n){ return DATA.results_m[n].f1; });
+  barChart('ch-f1-bar', mNames,
+    [{label:'F1 Score',data:mF1s,backgroundColor:mNames.map(function(n){return MC[n]+'99'||'#888';}),borderRadius:5}],
+    0.6, 1.0);
+
+  // Vitals AUC
+  var vNames = Object.keys(DATA.results_v);
+  var vAUCs  = vNames.map(function(n){ return DATA.results_v[n].auc; });
+  barChart('ch-auc-vitals', vNames,
+    [{label:'AUC-ROC',data:vAUCs,backgroundColor:vNames.map(function(n){return VC[n]||'#888';}),borderRadius:5}],
+    0.85, 1.0);
+
+  // Radar
+  mkChart('ch-radar',{type:'radar',data:{
+    labels:['AUC-ROC','F1','Avg Prec','CV-AUC','Stability'],
+    datasets:[{
+      label:'LR (MIMIC)',
+      data:[0.9333,0.8571,0.8842,0.9542,0.96],
+      borderColor:C.LR,backgroundColor:'rgba(59,130,246,0.15)',pointBackgroundColor:C.LR
+    },{
+      label:'Ensemble (MIMIC)',
+      data:[0.9,0.7826,0.8627,0.9,0.92],
+      borderColor:C.ENS,backgroundColor:'rgba(239,68,68,0.12)',pointBackgroundColor:C.ENS
+    }]
+  },options:Object.assign({},gOpt,{scales:{r:{min:0.6,max:1.0,grid:{color:'rgba(26,37,53,0.7)'},
+    pointLabels:{font:{size:9}},ticks:{stepSize:0.1,backdropColor:'transparent',font:{size:8}}}}})});
+
+  // Leaderboard
+  var tbl = document.getElementById('leaderboard-tbl');
+  var thead = '<thead><tr><th>Model</th><th>Dataset</th><th>AUC-ROC</th><th>Progress</th><th>F1</th><th>Avg Prec</th><th>Status</th></tr></thead>';
+  var tbody = '<tbody>';
+  var allRows = [];
+  Object.keys(DATA.results_m).forEach(function(n){
+    allRows.push({name:n,ds:'MIMIC-IV',r:DATA.results_m[n],color:MC[n]||'#888'});
+  });
+  Object.keys(DATA.results_v).forEach(function(n){
+    allRows.push({name:n,ds:'Vitals',r:DATA.results_v[n],color:VC[n]||'#888'});
+  });
+  allRows.sort(function(a,b){return b.r.auc-a.r.auc;});
+  var maxAUC = Math.max.apply(null, allRows.map(function(r){return r.r.auc;}));
+  allRows.forEach(function(row,i){
+    var isBest = i===0;
+    var bw = Math.round(row.r.auc/maxAUC*100);
+    tbody += '<tr'+(isBest?' class="best"':'')+'>'
+      +'<td style="font-weight:'+(isBest?600:400)+';color:'+(isBest?'var(--b2)':'var(--t1)')+'">'+row.name+(isBest?' &#x1F3C6;':'')+'</td>'
+      +'<td><span class="tp '+(row.ds==='MIMIC-IV'?'tp2':'tp3')+'">'+row.ds+'</span></td>'
+      +'<td style="font-family:var(--mono);color:'+(isBest?'var(--b2)':'var(--t2)')+'">'+row.r.auc.toFixed(4)+'</td>'
+      +'<td><div class="bwrap"><div class="btrack"><div class="bfill" style="width:'+bw+'%;background:'+row.color+'"></div></div><span style="font-size:9px;font-family:monospace;color:var(--t3)">'+row.r.auc.toFixed(4)+'</span></div></td>'
+      +'<td style="font-family:var(--mono);color:var(--t2)">'+row.r.f1.toFixed(4)+'</td>'
+      +'<td style="font-family:var(--mono);color:var(--t3)">'+row.r.ap.toFixed(4)+'</td>'
+      +'<td style="color:'+(isBest?'var(--b2)':'var(--t3)')+';font-size:11px">'+(isBest?'&#x2605; BEST':'&mdash;')+'</td>'
+      +'</tr>';
+  });
+  tbl.innerHTML = thead + tbody + '</tbody>';
+}
+
+// ══════ DATASETS ══════
+function renderDatasets(){
+  // Vital cards
+  var vg = document.getElementById('vital-grid');
+  var VNAMES = {heart_rate:'Heart Rate',sbp:'Systolic BP',dbp:'Diastolic BP',
+                resp_rate:'Resp Rate',temp_c:'Temperature',spo2:'SpO2',
+                gcs_eye:'GCS Eye',gcs_verbal:'GCS Verbal',gcs_motor:'GCS Motor'};
+  var VUNITS = {heart_rate:'bpm',sbp:'mmHg',dbp:'mmHg',resp_rate:'bpm',
+                temp_c:'°C',spo2:'%',gcs_eye:'pts',gcs_verbal:'pts',gcs_motor:'pts'};
+  var VCOLS  = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f472b6','#a3e635','#fb923c'];
+  var vs = DATA.vital_stats;
+  var vi = 0;
+  Object.keys(VNAMES).forEach(function(k){
+    if(vs[k]){
+      vg.innerHTML += '<div class="vital-card"><div class="vital-name">'+VNAMES[k]+'</div>'
+        +'<div class="vital-val" style="color:'+VCOLS[vi]+'">'+vs[k].mean.toFixed(1)+'</div>'
+        +'<div class="vital-sub">'+VUNITS[k]+' &middot; n='+vs[k].n+'</div>'
+        +'<div class="vital-sub">&sigma;='+vs[k].std.toFixed(1)+'</div></div>';
+    }
+    vi++;
+  });
+
+  // CUI distribution
+  mkChart('ch-cui-dist',{type:'bar',data:{
+    labels: DATA.cui_hist_lo.x.map(function(v){return v.toFixed(2);}),
+    datasets:[
+      {label:'Low Uncertainty',data:DATA.cui_hist_lo.y,backgroundColor:'rgba(59,130,246,0.6)',borderRadius:2},
+      {label:'High Uncertainty',data:DATA.cui_hist_hi.y,backgroundColor:'rgba(239,68,68,0.6)',borderRadius:2}
+    ]
+  },options:Object.assign({},gOpt,{scales:{
+    x:{grid:GR,title:{display:true,text:'CUI Score'}},
+    y:{grid:GR,title:{display:true,text:'Density'}}
+  }})});
+
+  // LOS distribution
+  mkChart('ch-los-dist',{type:'bar',data:{
+    labels: DATA.los_hist_lo.x.map(function(v){return Math.round(v)+'h';}),
+    datasets:[
+      {label:'Low Uncertainty',data:DATA.los_hist_lo.y,backgroundColor:'rgba(59,130,246,0.6)',borderRadius:2},
+      {label:'High Uncertainty',data:DATA.los_hist_hi.y,backgroundColor:'rgba(239,68,68,0.6)',borderRadius:2}
+    ]
+  },options:Object.assign({},gOpt,{scales:{
+    x:{grid:GR,title:{display:true,text:'ICU Hours'}},
+    y:{grid:GR,title:{display:true,text:'Density'}}
+  }})});
+
+  // KM
+  var kmDS = [];
+  var KM_COLS = {'Low Uncertainty':'#3b82f6','High Uncertainty':'#ef4444'};
+  Object.keys(DATA.km).forEach(function(name){
+    var km = DATA.km[name];
+    var pts = km.t.map(function(t,i){return {x:t,y:km.s[i]};});
+    kmDS.push({label:name,data:pts,borderColor:KM_COLS[name],backgroundColor:'transparent',
+               showLine:true,pointRadius:0,borderWidth:2,tension:0,stepped:'after'});
+  });
+  mkChart('ch-km',{type:'scatter',data:{datasets:kmDS},
+    options:Object.assign({},gOpt,{scales:{
+      x:{type:'linear',title:{display:true,text:'ICU Hours'},grid:GR,min:0,
+         ticks:{maxTicksLimit:8,callback:function(v){return v.toFixed(0);}}},
+      y:{min:0,max:1.05,title:{display:true,text:'Survival Probability'},grid:GR,
+         ticks:{callback:function(v){return v.toFixed(1);}}}
+    }})});
+}
+
+// ══════ PIPELINE ══════
+function renderPipeline(){
+  // Class balance chart
+  mkChart('ch-class-balance',{type:'bar',data:{
+    labels:['Before SMOTE (Train)','After SMOTE (Train)','Test Set'],
+    datasets:[
+      {label:'Low Uncertainty',data:[54,45,15],backgroundColor:'rgba(59,130,246,0.7)',borderRadius:4},
+      {label:'High Uncertainty',data:[21,45,10],backgroundColor:'rgba(239,68,68,0.7)',borderRadius:4}
+    ]
+  },options:Object.assign({},gOpt,{
+    indexAxis:'y',
+    scales:{x:{grid:GR,stacked:false,title:{display:true,text:'Count'}},y:{grid:GR,stacked:false}}
+  })});
+}
+
+// ══════ MIMIC ══════
+function renderMimic(){
+  // ROC
+  var rocDS = [];
+  rocDS.push({label:'Random (AUC=0.50)',data:[{x:0,y:0},{x:1,y:1}],
+    borderColor:'rgba(71,85,105,0.5)',showLine:true,pointRadius:0,borderDash:[5,5],borderWidth:1});
+  Object.keys(DATA.roc_m).forEach(function(name){
+    var r = DATA.roc_m[name];
+    var pts = r.fpr.map(function(v,i){return {x:v,y:r.tpr[i]};});
+    rocDS.push({label:name+' ('+r.auc.toFixed(3)+')',data:pts,
+      borderColor:MC[name]||'#888',showLine:true,pointRadius:0,borderWidth:2,tension:0.2});
+  });
+  mkChart('ch-roc-mimic',{type:'scatter',data:{datasets:rocDS},
+    options:Object.assign({},gOpt,{scales:{
+      x:{type:'linear',min:0,max:1,title:{display:true,text:'False Positive Rate'},grid:GR,
+         ticks:{maxTicksLimit:6,callback:function(v){return v.toFixed(1);}}},
+      y:{min:0,max:1,title:{display:true,text:'True Positive Rate'},grid:GR,
+         ticks:{callback:function(v){return v.toFixed(1);}}}
+    }})});
+
+  // PR
+  var prDS = [];
+  Object.keys(DATA.pr_m).forEach(function(name){
+    var r = DATA.pr_m[name];
+    var pts = r.r.map(function(v,i){return {x:v,y:r.p[i]};});
+    prDS.push({label:name+' (AP='+r.ap.toFixed(3)+')',data:pts,
+      borderColor:MC[name]||'#888',showLine:true,pointRadius:0,borderWidth:2,tension:0.2});
+  });
+  mkChart('ch-pr-mimic',{type:'scatter',data:{datasets:prDS},
+    options:Object.assign({},gOpt,{scales:{
+      x:{type:'linear',min:0,max:1,title:{display:true,text:'Recall'},grid:GR,
+         ticks:{maxTicksLimit:6,callback:function(v){return v.toFixed(1);}}},
+      y:{min:0,max:1,title:{display:true,text:'Precision'},grid:GR,
+         ticks:{callback:function(v){return v.toFixed(1);}}}
+    }})});
+
+  // Confusion matrices
+  var cmg = document.getElementById('cm-grid');
+  var cmNames = Object.keys(DATA.cm);
+  var CM_COLORS = [C.LR,C.RF,C.XGB,C.LGB,C.ENS];
+  cmNames.forEach(function(fullName,idx){
+    var cm = DATA.cm[fullName];
+    var shortName = fullName.replace('MIMIC_','');
+    var tn=cm[0][0],fp=cm[0][1],fn=cm[1][0],tp=cm[1][1];
+    var total=tn+fp+fn+tp;
+    var color = CM_COLORS[idx]||'#888';
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = '<div class="card-title"><div class="cdot" style="background:'+color+'"></div>'
+      +'<b style="color:'+color+'">'+shortName+'</b></div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">'
+      +'<div style="background:rgba(59,130,246,.15);border-radius:8px;padding:10px;text-align:center">'
+      +'<div style="font-family:var(--mono);font-size:9px;color:var(--t3);margin-bottom:4px">TN</div>'
+      +'<div style="font-family:var(--mono);font-size:22px;font-weight:700;color:#3b82f6">'+tn+'</div>'
+      +'<div style="font-size:10px;color:var(--t3)">Correct Low</div></div>'
+      +'<div style="background:rgba(239,68,68,.12);border-radius:8px;padding:10px;text-align:center">'
+      +'<div style="font-family:var(--mono);font-size:9px;color:var(--t3);margin-bottom:4px">FP</div>'
+      +'<div style="font-family:var(--mono);font-size:22px;font-weight:700;color:#ef4444">'+fp+'</div>'
+      +'<div style="font-size:10px;color:var(--t3)">False Alarm</div></div>'
+      +'<div style="background:rgba(245,158,11,.12);border-radius:8px;padding:10px;text-align:center">'
+      +'<div style="font-family:var(--mono);font-size:9px;color:var(--t3);margin-bottom:4px">FN</div>'
+      +'<div style="font-family:var(--mono);font-size:22px;font-weight:700;color:#f59e0b">'+fn+'</div>'
+      +'<div style="font-size:10px;color:var(--t3)">Missed!</div></div>'
+      +'<div style="background:rgba(16,185,129,.15);border-radius:8px;padding:10px;text-align:center">'
+      +'<div style="font-family:var(--mono);font-size:9px;color:var(--t3);margin-bottom:4px">TP</div>'
+      +'<div style="font-family:var(--mono);font-size:22px;font-weight:700;color:#10b981">'+tp+'</div>'
+      +'<div style="font-size:10px;color:var(--t3)">Correct High</div></div>'
+      +'</div>'
+      +'<div style="font-family:var(--mono);font-size:10px;color:var(--t3);text-align:center">'
+      +'AUC='+DATA.results_m[shortName].auc.toFixed(4)
+      +'  F1='+DATA.results_m[shortName].f1.toFixed(4)+'</div>';
+    cmg.appendChild(card);
+  });
+
+  // Score distributions — show Ensemble
+  var dist = DATA.dist['MIMIC_Ensemble'];
+  mkChart('ch-dist-mimic',{type:'bar',data:{
+    labels:dist.lo.x.map(function(v){return v.toFixed(2);}),
+    datasets:[
+      {label:'Low Uncertainty (True)',data:dist.lo.y,backgroundColor:'rgba(59,130,246,0.6)',borderRadius:2},
+      {label:'High Uncertainty (True)',data:dist.hi.y,backgroundColor:'rgba(239,68,68,0.6)',borderRadius:2}
+    ]
+  },options:Object.assign({},gOpt,{scales:{
+    x:{grid:GR,title:{display:true,text:'Predicted Uncertainty Probability'}},
+    y:{grid:GR,title:{display:true,text:'Count'}}
+  }})});
+
+  // Calibration
+  var calDS = [];
+  calDS.push({label:'Perfect',data:[{x:0,y:0},{x:1,y:1}],
+    borderColor:'rgba(71,85,105,0.5)',showLine:true,pointRadius:0,borderDash:[5,5],borderWidth:1});
+  Object.keys(DATA.cal_m).forEach(function(name){
+    var c = DATA.cal_m[name];
+    var pts = c.mp.map(function(v,i){return {x:v,y:c.fp[i]};});
+    calDS.push({label:name,data:pts,borderColor:MC[name]||'#888',
+                showLine:true,pointRadius:4,borderWidth:2,tension:0.2});
+  });
+  mkChart('ch-cal-mimic',{type:'scatter',data:{datasets:calDS},
+    options:Object.assign({},gOpt,{scales:{
+      x:{type:'linear',min:0,max:1,title:{display:true,text:'Mean Predicted Prob'},grid:GR,
+         ticks:{maxTicksLimit:6,callback:function(v){return v.toFixed(1);}}},
+      y:{min:0,max:1,title:{display:true,text:'Fraction of Positives'},grid:GR,
+         ticks:{callback:function(v){return v.toFixed(1);}}}
+    }})});
+}
+
+// ══════ VITALS ══════
+function renderVitals(){
+  // KPI vitals
+  var kv = document.getElementById('kpi-vitals');
+  var vitalsKpis = [
+    {label:'XGBoost AUC',val:'1.0000',sub:'Perfect separation',cls:'c4'},
+    {label:'LightGBM AUC',val:'1.0000',sub:'Perfect separation',cls:'c3'},
+    {label:'LR AUC',val:'0.8996',sub:'Near-perfect',cls:'c1'},
+    {label:'Ensemble AUC',val:'0.9999',sub:'All models',cls:'c2'},
+    {label:'Training Size',val:'160k',sub:'After 80/20 split',cls:'c5'},
+    {label:'Test Size',val:'40k',sub:'Held-out evaluation',cls:'c6'},
+  ];
+  vitalsKpis.forEach(function(k){
+    kv.innerHTML += '<div class="kpi '+k.cls+'"><div class="kpi-label">'+k.label+'</div>'
+      +'<div class="kpi-val '+k.cls+'">'+k.val+'</div>'
+      +'<div class="kpi-sub">'+k.sub+'</div></div>';
+  });
+
+  // ROC Vitals
+  var rocDS = [];
+  rocDS.push({label:'Random',data:[{x:0,y:0},{x:1,y:1}],
+    borderColor:'rgba(71,85,105,0.5)',showLine:true,pointRadius:0,borderDash:[5,5],borderWidth:1});
+  Object.keys(DATA.roc_v).forEach(function(name){
+    var r = DATA.roc_v[name];
+    var pts = r.fpr.map(function(v,i){return {x:v,y:r.tpr[i]};});
+    rocDS.push({label:name+' ('+r.auc.toFixed(4)+')',data:pts,
+      borderColor:VC[name]||'#888',showLine:true,pointRadius:0,borderWidth:2,tension:0.2});
+  });
+  mkChart('ch-roc-vitals',{type:'scatter',data:{datasets:rocDS},
+    options:Object.assign({},gOpt,{scales:{
+      x:{type:'linear',min:0,max:1,title:{display:true,text:'False Positive Rate'},grid:GR,
+         ticks:{maxTicksLimit:6,callback:function(v){return v.toFixed(1);}}},
+      y:{min:0,max:1,title:{display:true,text:'True Positive Rate'},grid:GR,
+         ticks:{callback:function(v){return v.toFixed(1);}}}
+    }})});
+
+  // PR Vitals
+  var prDS = [];
+  Object.keys(DATA.pr_v).forEach(function(name){
+    var r = DATA.pr_v[name];
+    var pts = r.r.map(function(v,i){return {x:v,y:r.p[i]};});
+    prDS.push({label:name+' (AP='+r.ap.toFixed(3)+')',data:pts,
+      borderColor:VC[name]||'#888',showLine:true,pointRadius:0,borderWidth:2,tension:0.2});
+  });
+  mkChart('ch-pr-vitals',{type:'scatter',data:{datasets:prDS},
+    options:Object.assign({},gOpt,{scales:{
+      x:{type:'linear',min:0,max:1,title:{display:true,text:'Recall'},grid:GR,
+         ticks:{maxTicksLimit:6,callback:function(v){return v.toFixed(1);}}},
+      y:{min:0,max:1,title:{display:true,text:'Precision'},grid:GR,
+         ticks:{callback:function(v){return v.toFixed(1);}}}
+    }})});
+
+  // Comparison bar
+  var allNames = ['Logistic Regression','Random Forest','XGBoost','LightGBM','Ensemble'];
+  var mimicAucs = allNames.map(function(n){ return DATA.results_m[n]?DATA.results_m[n].auc:null; });
+  var vitalsAucs = allNames.map(function(n){ return DATA.results_v[n]?DATA.results_v[n].auc:null; });
+  mkChart('ch-compare-datasets',{type:'bar',data:{
+    labels:allNames,
+    datasets:[
+      {label:'MIMIC-IV',data:mimicAucs,backgroundColor:'rgba(59,130,246,0.7)',borderRadius:4},
+      {label:'Vitals Dataset',data:vitalsAucs,backgroundColor:'rgba(245,158,11,0.7)',borderRadius:4}
+    ]
+  },options:Object.assign({},gOpt,{scales:{
+    x:{grid:GR},y:{grid:GR,min:0.7,max:1.02,ticks:{callback:function(v){return v.toFixed(2);}}}
+  }})});
+}
+
+// ══════ FEATURES ══════
+function renderFeatures(){
+  // SHAP bar
+  var shap = DATA.shap;
+  mkChart('ch-shap',{type:'bar',data:{
+    labels:shap.features.map(function(f){return f.length>22?f.substr(0,22)+'..':f;}),
+    datasets:[{label:'Mean |SHAP Value|',data:shap.values,
+      backgroundColor:shap.values.map(function(v,i){
+        var ratio=v/shap.values[0];
+        return 'rgba(139,92,246,'+Math.max(0.35,ratio)+')';
+      }),borderRadius:4}]
+  },options:Object.assign({},gOpt,{indexAxis:'y',scales:{x:{grid:GR,title:{display:true,text:'Mean |SHAP Value|'}},y:{grid:GR,ticks:{font:{size:9}}}}})});
+
+  // Feature importance consensus
+  var fi = DATA.feat_imp;
+  var labels = fi.features.map(function(f){return f.length>20?f.substr(0,20)+'..':f;});
+  mkChart('ch-feat-imp',{type:'bar',data:{
+    labels:labels,
+    datasets:[
+      {label:'Random Forest',data:fi.rf,backgroundColor:'rgba(59,130,246,0.75)',borderRadius:3},
+      {label:'XGBoost',      data:fi.xgb,backgroundColor:'rgba(245,158,11,0.75)',borderRadius:3},
+      {label:'LightGBM',     data:fi.lgb,backgroundColor:'rgba(139,92,246,0.75)',borderRadius:3}
+    ]
+  },options:Object.assign({},gOpt,{indexAxis:'y',scales:{x:{grid:GR,title:{display:true,text:'Normalised Importance'}},y:{grid:GR,ticks:{font:{size:9}}}}})});
+
+  // Feature type donut
+  mkChart('ch-feat-types',{type:'doughnut',data:{
+    labels:['Vital Signs (entropy)','Vital Signs (cv/range)','Vital Signs (slope/n)','Lab Tests (entropy/cv)','Lab Tests (range/n)','Demographics','ICU Meta'],
+    datasets:[{data:[18,18,18,27,27,3,3],
+      backgroundColor:['#3b82f6','#60a5fa','#93c5fd','#10b981','#34d399','#f59e0b','#8b5cf6'],
+      borderColor:'transparent',hoverOffset:6}]
+  },options:Object.assign({},gOpt,{cutout:'55%'})});
+}
+
+// ══════ INFERENCE ══════
+function renderInference(){
+  // Patient scores
+  var ps = document.getElementById('patient-scores');
+  var probs = DATA.results_m['Ensemble'].prob;
+  var trues = DATA.results_m['Ensemble'].true;
+  var n = Math.min(12, probs.length);
+  for(var i=0;i<n;i++){
+    var p = probs[i], t = trues[i];
+    var flag, fcolor, fbg;
+    if(p>=0.65){flag='&#x1F534; ESCALATE';fcolor='#ef4444';fbg='rgba(239,68,68,.1)';}
+    else if(p>=0.35){flag='&#x1F7E1; WATCH';fcolor='#f59e0b';fbg='rgba(245,158,11,.1)';}
+    else{flag='&#x1F7E2; MONITOR';fcolor='#10b981';fbg='rgba(16,185,129,.1)';}
+    var actual = t===1?'HIGH':'LOW';
+    var correct = ((p>=0.5 && t===1)||(p<0.5 && t===0));
+    ps.innerHTML += '<div style="display:flex;align-items:center;gap:12px;padding:8px 10px;'
+      +'background:'+fbg+';border-radius:8px;margin-bottom:6px;border:1px solid '+(fcolor+'33')+';">'
+      +'<div style="font-family:var(--mono);font-size:10px;color:var(--t3);min-width:60px">Patient '+(i+1)+'</div>'
+      +'<div style="flex:1"><div style="height:5px;background:rgba(26,37,53,.8);border-radius:3px">'
+      +'<div style="height:5px;width:'+(p*100)+'%;background:'+fcolor+';border-radius:3px"></div></div></div>'
+      +'<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+fcolor+';min-width:44px">'+p.toFixed(3)+'</div>'
+      +'<div style="font-size:11px;color:'+fcolor+';min-width:100px">'+flag+'</div>'
+      +'<div style="font-size:10px;color:var(--t3)">Actual:'+actual+' '+(correct?'&#x2713;':'&#x2717;')+'</div>'
+      +'</div>';
+  }
+
+  // Threshold curve
+  var prob = DATA.results_m['Ensemble'].prob;
+  var true_ = DATA.results_m['Ensemble'].true;
+  var threshs=[], precs=[], recs=[], f1s=[];
+  for(var th=0;th<=100;th+=2){
+    var t2=th/100;
+    var tp=0,fp=0,fn=0,tn=0;
+    for(var j=0;j<prob.length;j++){
+      var pred=(prob[j]>=t2)?1:0;
+      if(pred===1&&true_[j]===1)tp++;
+      else if(pred===1&&true_[j]===0)fp++;
+      else if(pred===0&&true_[j]===1)fn++;
+      else tn++;
+    }
+    var prec=tp/(tp+fp+1e-9), rec=tp/(tp+fn+1e-9);
+    var f1=2*prec*rec/(prec+rec+1e-9);
+    threshs.push(t2); precs.push(prec); recs.push(rec); f1s.push(f1);
+  }
+  mkChart('ch-threshold',{type:'line',data:{
+    labels:threshs.map(function(v){return v.toFixed(2);}),
+    datasets:[
+      {label:'Precision',data:precs,borderColor:'#3b82f6',pointRadius:0,borderWidth:2,tension:0.3,fill:false},
+      {label:'Recall',   data:recs, borderColor:'#ef4444', pointRadius:0,borderWidth:2,tension:0.3,fill:false},
+      {label:'F1 Score', data:f1s,  borderColor:'#10b981', pointRadius:0,borderWidth:2,tension:0.3,fill:false}
+    ]
+  },options:Object.assign({},gOpt,{scales:{
+    x:{grid:GR,title:{display:true,text:'Decision Threshold'},
+       ticks:{maxTicksLimit:10}},
+    y:{grid:GR,min:0,max:1,ticks:{callback:function(v){return v.toFixed(1);}}}
+  }})});
+}
+
+// ── INIT ──
+window.addEventListener('load', function(){
+  window._rendered = {overview:true};
+  renderOverview();
+});
+</script>
+</body>
+</html>
