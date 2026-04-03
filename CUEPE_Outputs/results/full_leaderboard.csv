@@ -1,0 +1,10 @@
+Model,Dataset,AUC-ROC,Avg Prec,F1,C-Index
+LR (MIMIC),MIMIC,0.9333,0.8842,0.8182,—
+RF (MIMIC),MIMIC,0.8867,0.8225,0.72,—
+XGBoost (MIMIC),MIMIC,0.8333,0.7245,0.6957,—
+LightGBM (MIMIC),MIMIC,0.86,0.7881,0.7826,—
+LR (Vitals),Vitals,0.8996,0.921,0.8245,—
+XGBoost (Vitals),Vitals,1.0,1.0,0.997,—
+LightGBM (Vitals),Vitals,1.0,1.0,0.9983,—
+Ensemble (MIMIC),MIMIC,0.8933,0.8175,0.8333,—
+Ensemble (Vitals),Vitals,0.9999,0.9999,0.9979,—
